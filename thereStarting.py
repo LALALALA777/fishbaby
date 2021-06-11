@@ -1,7 +1,3 @@
-import time
-
-import numpy as np
-
 from babydetector import *
 from visTool import *
 from fishtool import *
@@ -13,17 +9,17 @@ yolo_dir = 'yolov3'  # YOLO文件路径
 weightsPath = os.path.join(yolo_dir, 'yolov3-obj_30000.weights')  # 权重文件
 configPath = os.path.join(yolo_dir, 'yolov3-obj.cfg')  # 配置文件
 labelsPath = os.path.join(yolo_dir, 'fishbaby.names')  # label名称
-imgPath = 'snapshot/snap17.jpg'     # 测试图像
+imgPath = 'snapshot/snap14.jpg'     # 测试图像
 fishPath = 'testpictures/fish.png'
 laserStation = .618     # 扫描线图中百分比位置
 fishSize = tuple()
 videoPath = 'testpictures/fs1.mp4'
-len_criteria = [0, 1, 100, 200, 400, 600, 800, 1000]
-
+criteria_root = 'criteria_fish'
+crit_fish = [os.path.join(criteria_root, 'fish.png')]
 
 if __name__ == '__main__':
     img = cv.imread(imgPath)
-    fishCounter = FishBBoxedCounter(len_criteria)
+    fishCounter = FishBBoxedCounter(crit_fish)
     fishSize = get_fish_hw(fishPath)
     hw = img.shape[:2]
     net = get_YOLO(configPath, weightsPath)
@@ -34,8 +30,8 @@ if __name__ == '__main__':
     layerOutputs = get_output(net, blobImg)
     idxs, boxes, confidences, classIDs = get_bboxes(layerOutputs, hw)
     detectedTotal = len(idxs)
-    """names = get_labels(labelsPath)
-    paintBBoxesForOneImage(img, idxs, boxes, confidences, classIDs, names)"""
+    names = get_labels(labelsPath)
+    paintBBoxesForOneImage(img, idxs, boxes, confidences, classIDs, names)
 
     fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
     fishCounter.get_count()

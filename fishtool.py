@@ -1,7 +1,7 @@
 import numpy as np
 from collections import Counter, Iterable
-from visTool import paintBBoxesForOneImage
-from babydetector import get_fish_hw
+from visTool import drawBBoxesWithKindAndLength
+from babydetector import get_fish_hw, get_real_boxes
 import cv2 as cv
 
 
@@ -32,7 +32,7 @@ class FishBBoxedCounter():
     def __init__(self, len_criteria: Iterable):
 
         def take(elements):
-            return elements[2]
+            return elements[1]
 
         assert isinstance(len_criteria, Iterable),\
             'Criteria fish should be Iterable object'
@@ -40,28 +40,29 @@ class FishBBoxedCounter():
         self.counter = Counter()
 
         self.fish = list(map(get_fish_benchmarks, len_criteria))
-        self.lengths = [(i, j['radius']) for i, j in enumerate(self.fish)].sort(key=take)
+        self.lengths = [(i, j['radius']) for i, j in enumerate(self.fish)]
+        self.lengths.sort(key=take)
 
+        a = 1
 
     def classify(self, length):
-        for i, hc in enumerate(self.lengths):
+        for i, hc in self.lengths:
             if length < hc:
-                return hc
+                return i
 
     def get_bboxed_fish_size(self, idxs, bboxes, **kwargs):
         dic = kwargs
+        bboxes = get_real_boxes(idxs, bboxes)
         kinds = [0] * len(bboxes)
         length = [0] * len(bboxes)
-        if len(idxs) > 0:
-            for i in idxs.flatten():
-                box_len = estimate_fish_length(bboxes[i])
-                length[i] = box_len
-                kinds[i] = self.classify(box_len)
+        for i, box in enumerate(bboxes):
+            fish_len = estimate_fish_length(box)
+            length[i] = fish_len
+            kinds[i] = self.classify(fish_len)
 
         if 'image' in dic.keys():
             img = dic['image']
-            paintBBoxesForOneImage(img, idxs, bboxes, confidences=length, classIDs=np.arange(0, len(bboxes)),
-                                   labels=kinds)
+            drawBBoxesWithKindAndLength(img, bboxes, lens=length, kinds=kinds)
 
         self.counter.update(kinds)
 
