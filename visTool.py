@@ -57,7 +57,6 @@ def paintBBoxesForOneImage(img, idxs, boxes, confidences, classIDs, labels, colo
             (w, h) = (boxes[i][2], boxes[i][3])
             cv.rectangle(img, (x, y), (x+w, y+h), color, thickness=1)
             text = "{}: {:.1f}".format(labels[classIDs[i]], confidences[i])
-            #text = '{:.4f} {}'.format(confidences[i], a)
             cv.putText(img, text, (x, y-5), cv.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
     return
 
@@ -68,7 +67,7 @@ def horizontally_joint_photos(photos: list):
 
 def drawBBoxesWithKindAndLength(img, bboxes, lens, kinds, color=(255, 0, 0)):
     for i, bbox in enumerate(bboxes):
-        x, y, h, w = bbox
+        x, y, w, h = bbox
         cv.rectangle(img, (x, y), (x + w, y + h), color, thickness=1)
         text = "{}: {:.2f}".format(kinds[i], lens[i])
         cv.putText(img, text, (x, y-5), cv.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)

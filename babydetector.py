@@ -4,8 +4,8 @@ import time
 from videoProcessing import FishScanProcessing, get_all_frames
 
 
-CONFIDENCE = 0.5  # 过滤弱检测的最小概率
-THRESHOLD = 0.6  # 非最大值抑制阈值
+CONFIDENCE = 0.8  # 过滤弱检测的最小概率
+THRESHOLD = 0.5  # 非最大值抑制阈值,  重叠面积比小于这个的框保留
 color = (0, 255, 0)
 
 
@@ -48,7 +48,7 @@ def get_bboxes(layerOutputs, highWeight: tuple):
     for out in layerOutputs:  # 各个输出层
         for detection in out:  # 各个框框
             # 拿到置信度
-            scores = detection[5:]  # 各个类别的置信度, 前四个是box位置
+            scores = detection[4:]  # 各个类别的置信度, 前四个是box位置
             classID = np.argmax(scores)  # 最高置信度的id即为分类id
             confidence = scores[classID]  # 拿到置信度
 
@@ -63,7 +63,7 @@ def get_bboxes(layerOutputs, highWeight: tuple):
                 classIDs.append(classID)
 
     # 2）应用非最大值抑制(non-maxima suppression，nms)进一步筛掉
-    idxs = cv.dnn.NMSBoxes(boxes, confidences, CONFIDENCE, THRESHOLD) # boxes中，保留的box的索引index存入idxs(按自信度从大到小排序)
+    idxs = cv.dnn.NMSBoxes(boxes, confidences, CONFIDENCE, THRESHOLD) # boxes中，保留的box的索引index存入idxs(按自信度从大到小排序) non maximum suppression
     return idxs, boxes, confidences, classIDs
 
 
@@ -75,11 +75,11 @@ def get_labels(labelsPath):
 
 
 def get_real_boxes(idxs, boxes):
-    new = []
+    real = []
     if len(idxs)>0:
         for i in idxs.flatten():
-            new.append(boxes[i])
-    return new
+            real.append(boxes[i])
+    return real
 
 
 def get_fish_hw(fish_path, show=False):
