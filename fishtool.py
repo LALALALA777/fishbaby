@@ -39,12 +39,12 @@ class FishBBoxedCounter():
         self.counter = Counter()
 
         self.fish = list(map(get_fish_benchmarks, len_criteria))
-        self.lengths = [(i, j['radius']) for i, j in enumerate(self.fish)]
-        self.lengths.sort(key=secondofelement)
-        self.lengths.append((len(self.lengths), max_fish_size))
+        self.lengthBase = [(i, j['radius']) for i, j in enumerate(self.fish)]
+        self.lengthBase.sort(key=secondofelement)
+        self.lengthBase.append((len(self.lengthBase), max_fish_size))
 
     def classify(self, length):
-        for i, hc in self.lengths:
+        for i, hc in self.lengthBase:
             if length < hc:
                 return i
 
