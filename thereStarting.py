@@ -36,13 +36,14 @@ def main():
     if launch_camera() is True:
         while True:
             img = snapshot()
-            if img is np.ndarray:
+            if isinstance(img, np.ndarray):
                 blobImg = get_blobImg(img)
                 layerOutputs = get_output(net, blobImg)
                 idxs, boxes, confidences, classIDs = get_bboxes(layerOutputs, img.shape[:2])
                 fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
                 time.sleep(5)
             elif img is None:
+                pass
                 break
         print('Work finished.')
         return fishCounter.get_count()
