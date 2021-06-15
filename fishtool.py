@@ -2,7 +2,11 @@ import numpy as np
 from collections import Counter, Iterable
 from visTool import drawBBoxesWithKindAndLength
 from babydetector import get_fish_hw, get_real_boxes
-import cv2 as cv
+
+
+def get_fish_levels(criteria_fish_root):
+    pass
+
 
 
 def fish_angle(box):
@@ -24,15 +28,20 @@ def get_fish_benchmarks(fishbaby_path):
     box = [0, 0, dic['width'], dic['length']]
     dic['theta'] = fish_angle(box)
     dic['radius'] = int(estimate_fish_length(box))
-
     return dic
 
 
 class FishBBoxedCounter():
     def __init__(self, len_criteria: Iterable, max_fish_size=1000):
+        """
+        :param len_criteria: different fish levels file name
+        :param max_fish_size: ceiling of fish size
+        """
+
         assert isinstance(len_criteria, Iterable), \
             'Criteria fish should be Iterable object'
-        def secondofelement(element):
+
+        def SecondofElement(element):
             return element[1]
 
         self.h_criteria = list(len_criteria)
@@ -40,7 +49,7 @@ class FishBBoxedCounter():
 
         self.fish = list(map(get_fish_benchmarks, len_criteria))
         self.lengthBase = [(i, j['radius']) for i, j in enumerate(self.fish)]
-        self.lengthBase.sort(key=secondofelement)
+        self.lengthBase.sort(key=SecondofElement)
         self.lengthBase.append((len(self.lengthBase), max_fish_size))
 
     def classify(self, length):

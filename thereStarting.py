@@ -1,8 +1,10 @@
-from babydetector import *
-from visTool import *
-from fishtool import *
+from babydetector import get_YOLO, get_output, get_bboxes, get_blobImg
+from visTool import get_labels, show_image
+from fishtool import FishBBoxedCounter
 import cv2 as cv
 import os
+from fromCamera import capture_snapshot, launch_camera
+import time
 
 
 yolo_dir = 'yolov3'  # YOLO文件路径
@@ -15,8 +17,22 @@ laserStation = .618     # 图中扫描线百分比位置
 fishSize = tuple()
 videoPath = 'testpictures/fs1.mp4'
 criteria_root = 'criteria_fish'
-fishScales = ['fish.png']  # 不同档的鱼的图片文件名
+fishScales = ['fish1.png']  # 不同level的鱼的图片文件名
 crit_fish = [os.path.join(criteria_root, fishScale) for fishScale in fishScales]
+
+
+def main():
+    fishCounter = FishBBoxedCounter(crit_fish)
+    net = get_YOLO(configPath, weightsPath)
+    if launch_camera() is True:
+        while True:
+            img = capture_snapshot()
+            if img is not None:
+                blobImg = get_blobImg(img)
+                layerOutputs = get_output(net, blobImg)
+                idxs, boxes, confidences, classIDs = get_bboxes(layerOutputs, img.shape[:2])
+                fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
+                time.sleep(5)
 
 
 if __name__ == '__main__':

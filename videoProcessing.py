@@ -70,3 +70,6 @@ def get_all_frames(v: cv.VideoCapture, reshape=False, shape=None):
             frame = v.read()
     return photos
 
+
+def get_interval():
+    pass
