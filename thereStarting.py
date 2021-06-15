@@ -50,6 +50,7 @@ def main():
         print('\033[0;31mSomething error!\033[0m')
         return
 
+
 if __name__ == '__main__':
     img = cv.imread(imgPath)
     fishCounter = FishBBoxedCounter(crit_fish)
