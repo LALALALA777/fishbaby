@@ -11,7 +11,7 @@ color = (0, 255, 0)
 
 # 加载网络、配置权重
 def get_YOLO(configPath, weightsPath):
-    print("[INFO] loading YOLO from disk...")
+    print("Loading YOLO from disk...")
     net = cv.dnn.readNetFromDarknet(configPath, weightsPath)  # #  利用下载的文件
     return net
 
@@ -31,7 +31,7 @@ def get_output(net, blobImg):
     start = time.time()
     layerOutputs = net.forward(outInfo)  # 得到各个输出层的、各个检测框等信息，是二维结构。
     end = time.time()
-    print("[INFO] YOLO took {:.6f} seconds".format(end - start))  # # 可以打印下信息
+    print("YOLO took {:.6f} seconds".format(end - start))  # # 可以打印下信息
     return layerOutputs
 
 
@@ -121,15 +121,15 @@ def fast_video_process(v_path, net, fishsize, laserstation, shape=None):
     scaner = FishScanProcessing(hw[0], hw[1], fish_size=fishsize, laser=laserstation)
     blobImgs = cv.dnn.blobFromImages(frames, 1./255., shape)
     start = time.time()
-    print('StartIng....')
+    print('Starting process video....')
     outs = get_output(net, blobImgs)
     for n in range(len(frames)):
         out = [outs[0][n], outs[1][n], outs[2][n]]
         idxs, boxes, confidences, classIDs = get_bboxes(out, hw)
         real_boxes = get_real_boxes(idxs, boxes)
         scaner.scan(real_boxes)
-    print('[INFO] Total num: {}'.format(scaner.get_count()))
-    print('[INFO] Runtime: {:.4f}'.format(time.time()-start))
+    print('Total num: {}'.format(scaner.get_count()))
+    print('Runtime: {:.4f}'.format(time.time()-start))
     return
 
 
@@ -140,7 +140,7 @@ def video_process(v_path, net, fishsize, laserstation, labelspath, show=False):
     have, photo = v.read()
     hw = photo.shape[:2]
     scanner = FishScanProcessing(hw[0], hw[1], fish_size=fishsize, laser=laserstation)
-    print("[INFO] Count FishFish....")
+    print("Count FishFish....")
     start = time.time()
     while have:
         img = photo.copy()
@@ -153,7 +153,7 @@ def video_process(v_path, net, fishsize, laserstation, labelspath, show=False):
             show_effect_picture(photo, img, idxs, boxes, confidences,
                                 classIDs, labelspath, laserstation, scanner.get_count())
         have, photo = v.read()
-    print('[INFO] Runtime: {:.4f}s'.format((time.time() - start)))
-    print('[INFO] Fish Amount:{}'.format(scanner.get_count()))
+    print('Runtime: {:.4f}s'.format((time.time() - start)))
+    print('Fish Amount:{}'.format(scanner.get_count()))
     return
 

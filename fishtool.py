@@ -49,6 +49,7 @@ class FishBBoxedCounter():
 
         self.fish = list(map(get_fish_benchmarks, len_criteria))
         self.lengthBase = [(i, j['radius']) for i, j in enumerate(self.fish)]
+        print('Fish levels: ', self.lengthBase)
         self.lengthBase.sort(key=SecondofElement)
         self.lengthBase.append((len(self.lengthBase), max_fish_size))
 
