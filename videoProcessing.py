@@ -69,7 +69,3 @@ def get_all_frames(v: cv.VideoCapture, reshape=False, shape=None):
             photos.append(frame[1])
             frame = v.read()
     return photos
-
-
-def get_interval():
-    pass

@@ -14,7 +14,7 @@ def launch_camera():
     nDev = len(DevList)
     if nDev < 1:
         print("No camera was found!")
-        return
+        return False
 
     for i, DevInfo in enumerate(DevList):
         print("{}: {} {}".format(i, DevInfo.GetFriendlyName(), DevInfo.GetPortType()))
@@ -28,7 +28,7 @@ def launch_camera():
         hCamera = mvsdk.CameraInit(DevInfo, -1, -1)
     except mvsdk.CameraException as e:
         print("CameraInit Failed({}): {}".format(e.error_code, e.message))
-        return
+        return False
 
     # 获取相机特性描述
     cap = mvsdk.CameraGetCapability(hCamera)
@@ -60,7 +60,7 @@ def launch_camera():
     return True
 
 
-def capture_snapshot():
+def snapshot():
     frame = None
     launch_camera()
     # 从相机取一帧图片
@@ -133,6 +133,3 @@ def PrintCapbility(cap):
     for i in range(cap.iBayerDecAlmHdDesc):
         desc = cap.pBayerDecAlmHdDesc[i]
         print("{}: {}".format(desc.iIndex, desc.GetDescription()))
-
-
-capture_snapshot()

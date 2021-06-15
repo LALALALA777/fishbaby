@@ -2,6 +2,7 @@ import numpy as np
 from collections import Counter, Iterable
 from visTool import drawBBoxesWithKindAndLength
 from babydetector import get_fish_hw, get_real_boxes
+from visTool import show_image
 
 
 def get_fish_levels(criteria_fish_root):
@@ -34,7 +35,7 @@ def get_fish_benchmarks(fishbaby_path):
 class FishBBoxedCounter():
     def __init__(self, len_criteria: Iterable, max_fish_size=1000):
         """
-        :param len_criteria: different fish levels file name
+        :param len_criteria: levels of different fish file name
         :param max_fish_size: ceiling of fish size
         """
 
@@ -44,13 +45,11 @@ class FishBBoxedCounter():
         def SecondofElement(element):
             return element[1]
 
-        self.h_criteria = list(len_criteria)
         self.counter = Counter()
-
-        self.fish = list(map(get_fish_benchmarks, len_criteria))
-        self.lengthBase = [(i, j['radius']) for i, j in enumerate(self.fish)]
-        print('Fish levels: ', self.lengthBase)
+        self.fish = list(map(get_fish_benchmarks, list(len_criteria)))
+        self.lengthBase = [(i+1, j['radius']) for i, j in enumerate(self.fish)]
         self.lengthBase.sort(key=SecondofElement)
+        print('Fish levels: ', self.lengthBase)
         self.lengthBase.append((len(self.lengthBase), max_fish_size))
 
     def classify(self, length):
@@ -61,8 +60,8 @@ class FishBBoxedCounter():
     def get_bboxed_fish_size(self, idxs, bboxes, **kwargs):
         kwargs = kwargs
         bboxes = get_real_boxes(idxs, bboxes)
-        kinds = [0] * len(bboxes)
-        length = [0] * len(bboxes)
+        kinds = [0] * len(bboxes)   # for convenient drawing
+        length = [0] * len(bboxes)  # the same thing up here
         for i, box in enumerate(bboxes):
             fish_len = estimate_fish_length(box)
             length[i] = fish_len
@@ -71,11 +70,17 @@ class FishBBoxedCounter():
         if 'image' in kwargs.keys():
             img = kwargs['image']
             drawBBoxesWithKindAndLength(img, bboxes, lens=length, kinds=kinds)
+            show_image(img)
 
         self.counter.update(kinds)
 
     def get_count(self):
-        print('Fish Total: ', self.counter)
+        """
+
+        @return: the number of what fish had counted so far
+        """
+
+        print('Fish statistics:', self.counter)
         return sum(self.counter.values())
 
 
