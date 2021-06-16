@@ -63,7 +63,6 @@ def launch_camera(toggle_mode):
 def close_camera():
     # 关闭相机
     mvsdk.CameraUnInit(hCamera)
-
     # 释放帧缓存
     mvsdk.CameraAlignFree(pFrameBuffer)
 

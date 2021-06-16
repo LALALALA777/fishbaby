@@ -36,14 +36,14 @@ def main():
     if launch_camera(toggle_mode=0) is True:
         while cv.waitKey(2) != ord('q'):
             img = snapshot()
-            if img is False:
+            if img is None:
                 continue
             elif isinstance(img, np.ndarray):
                 idxs, boxes, _, _ = directly_get_output(img, net)
                 img = fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
                 cv.imshow('cap', img)
                 #time.sleep(0)
-            elif img is None:
+            elif img is False:
                 break
         close_camera()
         print('Work finished.')
@@ -54,21 +54,17 @@ def main():
 
 
 if __name__ == '__main__':
-    img = cv.imread(imgPath)
+    """img = cv.imread(imgPath)
     fishCounter = FishBBoxedCounter(crit_fish)
     hw = img.shape[:2]
     net = get_YOLO(configPath, weightsPath)
-    #video_process(videoPath, net, fishsize=fishSize, laserstation=laserStation, labelspath=labelsPath, show=True)
-    # fast_video_process(videoPath, net, fishsize=fishSize, laserstation=laserStation, shape=(256, 256))
 
     blobImg = get_blobImg(img)
     layerOutputs = get_output(net, blobImg)
     idxs, boxes, confidences, classIDs = get_bboxes(layerOutputs, hw)
     names = get_labels(labelsPath)
-    #paintBBoxesForOneImage(img, idxs, boxes, confidences, classIDs, names)
-
     fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
-    print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))
+    print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))"""
 
     main()
 
