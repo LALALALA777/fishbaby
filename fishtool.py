@@ -71,7 +71,7 @@ class FishBBoxedCounter():
         if 'image' in kwargs.keys():
             img = kwargs['image']
             drawBBoxesWithKindAndLength(img, bboxes, lens=length, kinds=kinds)
-            show_image(img)
+            return img
 
         self.counter.update(kinds)
 

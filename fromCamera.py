@@ -7,7 +7,7 @@ hCamera = 0
 pFrameBuffer = int()
 
 
-def launch_camera():
+def launch_camera(toggle_mode):
     global pFrameBuffer, hCamera
     # 枚举相机
     DevList = mvsdk.CameraEnumerateDevice()
@@ -42,7 +42,7 @@ def launch_camera():
         mvsdk.CameraSetIspOutFormat(hCamera, mvsdk.CAMERA_MEDIA_TYPE_MONO8)
 
     # 相机模式切换成连续采集
-    mvsdk.CameraSetTriggerMode(hCamera, 2)  # toggle mode: 0=continuous; 1=software; 2=hardware
+    mvsdk.CameraSetTriggerMode(hCamera, toggle_mode)  # toggle mode: 0=continuous; 1=software; 2=hardware
 
     # 手动曝光，曝光时间30ms
     mvsdk.CameraSetAeState(hCamera, 1)  	# exposure: 0=manual; 1=auto

@@ -33,17 +33,18 @@ def get_time_interval():
 def main():
     fishCounter = FishBBoxedCounter(crit_fish)
     net = get_YOLO(configPath, weightsPath)
-    if launch_camera() is True:
-        while True:
+    if launch_camera(toggle_mode=0) is True:
+        while cv.waitKey(2) != ord('q'):
             img = snapshot()
-            if img:
+            if img is False:
+                continue
+            elif isinstance(img, np.ndarray):
                 idxs, boxes, _, _ = directly_get_output(img, net)
-                fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
-                time.sleep(5)
+                img = fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
+                cv.imshow('cap', img)
+                #time.sleep(0)
             elif img is None:
                 break
-            elif img is False:
-                pass
         close_camera()
         print('Work finished.')
         return fishCounter.get_count()
@@ -68,5 +69,7 @@ if __name__ == '__main__':
 
     fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
     print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))
+
+    main()
 
 
