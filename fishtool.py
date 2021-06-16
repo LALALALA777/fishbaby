@@ -23,7 +23,7 @@ def estimate_fish_length(box):
 
 def get_fish_benchmarks(fishbaby_path):
     dic = {}
-    fish_hw = get_fish_hw(fishbaby_path, show=False)[::-1]   # returned is (x, y), already is orthogonal of (w, h)
+    fish_hw = get_fish_hw(fishbaby_path, show=False)   # returned is (x, y), already is orthogonal of (w, h)
     dic['length'] = max(fish_hw)
     dic['width'] = min(fish_hw)
     box = [0, 0, dic['width'], dic['length']]
@@ -47,6 +47,7 @@ class FishBBoxedCounter():
 
         self.counter = Counter()
         self.fish = list(map(get_fish_benchmarks, list(len_criteria)))
+        print(self.fish)
         self.lengthBase = [(i+1, j['radius']) for i, j in enumerate(self.fish)]
         self.lengthBase.sort(key=SecondofElement)
         print('Fish levels: ', self.lengthBase)

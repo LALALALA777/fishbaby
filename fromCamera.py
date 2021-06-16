@@ -42,11 +42,11 @@ def launch_camera():
         mvsdk.CameraSetIspOutFormat(hCamera, mvsdk.CAMERA_MEDIA_TYPE_MONO8)
 
     # 相机模式切换成连续采集
-    mvsdk.CameraSetTriggerMode(hCamera, 0)
+    mvsdk.CameraSetTriggerMode(hCamera, 2)  # toggle mode: 0=continuous; 1=software; 2=hardware
 
     # 手动曝光，曝光时间30ms
-    mvsdk.CameraSetAeState(hCamera, 0)
-    mvsdk.CameraSetExposureTime(hCamera, 100 * 1000)
+    mvsdk.CameraSetAeState(hCamera, 1)  	# exposure: 0=manual; 1=auto
+    mvsdk.CameraSetExposureTime(hCamera, 30 * 1000)
 
     # 让SDK内部取图线程开始工作
     mvsdk.CameraPlay(hCamera)
@@ -60,13 +60,18 @@ def launch_camera():
     return True
 
 
-def snapshot():
-    frame = None
-    launch_camera()
-    # 从相机取一帧图片
+def close_camera():
+    # 关闭相机
+    mvsdk.CameraUnInit(hCamera)
 
+    # 释放帧缓存
+    mvsdk.CameraAlignFree(pFrameBuffer)
+
+
+def snapshot():
+    # 从相机取一帧图片
     try:
-        pRawData, FrameHead = mvsdk.CameraGetImageBuffer(hCamera, 2000)
+        pRawData, FrameHead = mvsdk.CameraGetImageBuffer(hCamera, 2000)     # if no buffer can read, go to except
         mvsdk.CameraImageProcess(hCamera, pRawData, pFrameBuffer, FrameHead)
         mvsdk.CameraReleaseImageBuffer(hCamera, pRawData)
 
@@ -82,20 +87,17 @@ def snapshot():
 
         frame = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_LINEAR)
 
-        cv2.imshow("Press q to end", frame)
+        """cv2.imshow("Press q to end", frame)
         cv2.waitKey()
-        cv2.destroyAllWindows()
+        cv2.destroyAllWindows()"""
 
     except mvsdk.CameraException as e:
         if e.error_code != mvsdk.CAMERA_STATUS_TIME_OUT:
             print("CameraGetImageBuffer failed({}): {}".format(e.error_code, e.message))
+            frame = False
+        else:
             frame = None
 
-    # 关闭相机
-    mvsdk.CameraUnInit(hCamera)
-
-    # 释放帧缓存
-    mvsdk.CameraAlignFree(pFrameBuffer)
     return frame
 
 

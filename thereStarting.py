@@ -1,11 +1,11 @@
 import numpy as np
 
-from babydetector import get_YOLO, get_output, get_bboxes, get_blobImg
+from babydetector import get_YOLO, get_output, get_bboxes, get_blobImg, directly_get_output
 from visTool import get_labels, show_image
 from fishtool import FishBBoxedCounter
 import cv2 as cv
 import os
-from fromCamera import snapshot, launch_camera
+from fromCamera import snapshot, launch_camera, close_camera
 import time
 
 # yolo config
@@ -36,20 +36,20 @@ def main():
     if launch_camera() is True:
         while True:
             img = snapshot()
-            if isinstance(img, np.ndarray):
-                blobImg = get_blobImg(img)
-                layerOutputs = get_output(net, blobImg)
-                idxs, boxes, confidences, classIDs = get_bboxes(layerOutputs, img.shape[:2])
+            if img:
+                idxs, boxes, _, _ = directly_get_output(img, net)
                 fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
                 time.sleep(5)
             elif img is None:
-                pass
                 break
+            elif img is False:
+                pass
+        close_camera()
         print('Work finished.')
         return fishCounter.get_count()
     else:
         print('\033[0;31mSomething error!\033[0m')
-        return
+        return None
 
 
 if __name__ == '__main__':

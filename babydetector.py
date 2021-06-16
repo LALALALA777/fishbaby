@@ -9,6 +9,12 @@ THRESHOLD = 0.5  # 非最大值抑制阈值,  重叠面积比小于这个的框�
 color = (0, 255, 0)
 
 
+def directly_get_output(img, net):
+    blobImg = get_blobImg(img)
+    layerOutputs = get_output(net, blobImg)
+    return get_bboxes(layerOutputs, img.shape[:2])
+
+
 # 加载网络、配置权重
 def get_YOLO(configPath, weightsPath):
     print("Loading YOLO from disk...")
@@ -92,8 +98,8 @@ def get_fish_hw(fish_path, show=False):
     ret, t = cv.threshold(fish, 128, 255, cv.THRESH_OTSU)
     contours = cv.findContours(t, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
     for contour in contours:
-        if len(contour):
-            pass
+        if len(contour) < 50:   # regard it as outlier
+            continue
         for point in contour:
             x, y = point.flatten()
             if x < x_min:
