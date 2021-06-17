@@ -26,6 +26,7 @@ def show_images_continuously(img):
 
 
 def show_image(img):
+    img = img[:, :, ::-1]
     plt.imshow(img)
     plt.yticks([])
     plt.xticks([])

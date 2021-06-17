@@ -1,6 +1,4 @@
 import numpy as np
-
-
 from babydetector import get_YOLO, get_output, get_bboxes, get_blobImg, directly_get_output
 from visTool import get_labels, show_image
 from fishtool import FishBBoxedCounter
@@ -8,12 +6,6 @@ import cv2 as cv
 import os
 from fromCamera import snapshot, launch_camera, close_camera
 import time
-import sys
-sys.path.append(r'/home/jiang/PycharmProjects/oanet/OANet/demo')
-sys.path.append(r'/home/jiang/PycharmProjects/oanet/OANet/core')
-from demo import match_interface
-
-
 
 # yolo config
 yolo_dir = 'yolov3'  # YOLO文件路径
@@ -21,7 +13,7 @@ weightsPath = os.path.join(yolo_dir, 'yolov3-obj_30000.weights')  # 权重文件
 configPath = os.path.join(yolo_dir, 'yolov3-obj.cfg')  # 配置文件
 labelsPath = os.path.join(yolo_dir, 'fishbaby.names')  # label名称
 
-imgPath = 'snapshot/snap14.jpg'     # 测试图像
+imgPath = 'snapshot/snap13.jpg'     # 测试图像
 fishPath = 'testpictures/fish.png'  # 用于video得到fishSize
 laserStation = .618     # 图中扫描线百分比位置
 fishSize = tuple()
@@ -32,23 +24,39 @@ crit_fish = [os.path.join(criteria_root, fishScale) for fishScale in fishScales]
 
 
 def get_time_interval():
-    pre = snapshot()
-    pos = snapshot()
-    """cv.imshow('previous', pre)
-    cv.imshow('posterior', pos)"""
+    source = snapshot()
+    time.sleep(1)
+    target = snapshot()
+    #source = cv.imread('testpictures/f20.png', 0)
+    #target = cv.imread('testpictures/f21.png', 0)
+    ph, pw = target.shape
+    template = source[int(ph*0.35):int(ph*0.65), int(pw*0.45):int(pw*0.55)]
+    res = cv.matchTemplate(target, template, cv.TM_SQDIFF_NORMED)
+    min_val, max_val, min_loc, max_loc = cv.minMaxLoc(res)
+    top_left = min_loc  # (x, y)
+    bottom_right = (top_left[0] + template.shape[1], top_left[1] + template.shape[0])
+    cv.rectangle(target, top_left, bottom_right, (255, 0, 0))
+    cv.imshow('s', target)
+    cv.waitKeyEx()
+    cv.destroyAllWindows()
 
-    corr1, corr2 = match_interface(pre, pos)
+    d = np.abs(top_left[1] - int(ph*0.35))
+    if d == 0:
+        waitTime = 0
+    else:
+        waitTime = ph // d
+    print("The time interval between two frames has calculated\n\twait time:", waitTime)
+    return waitTime
 
-    print("The time interval between two frames has calculated successfully")
-    return
 
-
-def main(auto_interval=False):
+def main(waitTime: int, auto_interval=False):
     fishCounter = FishBBoxedCounter(crit_fish)
     net = get_YOLO(configPath, weightsPath)
     if launch_camera(toggle_mode=0) is True:
         if auto_interval:
-            sleepTime = get_time_interval()
+            waitTime = get_time_interval()
+        assert isinstance(waitTime, int), \
+            '\033[0;31mTime interval between snapshot must be integral type. \033[0m'
         while cv.waitKey(2) != ord('q'):
             img = snapshot()
             if img is None:
@@ -57,7 +65,7 @@ def main(auto_interval=False):
                 idxs, boxes, _, _ = directly_get_output(img, net)
                 img = fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
                 cv.imshow('cap', img)
-                #time.sleep(0)
+                time.sleep(waitTime)
             elif img is False:
                 break
         close_camera()
@@ -82,4 +90,5 @@ if __name__ == '__main__':
     fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
     print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))"""
 
-    main(auto_interval=True)
+    main(waitTime=0, auto_interval=True)
+    get_time_interval()

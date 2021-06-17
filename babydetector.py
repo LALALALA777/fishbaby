@@ -96,9 +96,9 @@ def get_fish_hw(fish_path, show=False):
     y_min, x_min = fish.shape   # fish in here is gray scale
     y_max, x_max = 0, 0
     ret, t = cv.threshold(fish, 128, 255, cv.THRESH_OTSU)
-    contours = cv.findContours(t, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[1]
+    contours = cv.findContours(t, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
     for contour in contours:
-        if len(contour) < 10:   # regard it as outlier
+        if len(contour) < 50:   # regard it as outlier
             continue
         for point in contour:
             x, y = point.flatten()
