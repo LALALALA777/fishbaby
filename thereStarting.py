@@ -36,13 +36,12 @@ def get_time_interval():
     res = cv.matchTemplate(target, template, cv.TM_SQDIFF_NORMED)
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(res)
     top_left = min_loc  # (x, y)
-    bottom_right = (top_left[0] + template.shape[1], top_left[1] + template.shape[0])
+    """bottom_right = (top_left[0] + template.shape[1], top_left[1] + template.shape[0])
     cv.rectangle(target, top_left, bottom_right, (255, 0, 0))
     cv.imshow('s', target)
     cv.waitKeyEx()
-    cv.destroyAllWindows()
-
-    d = np.abs(top_left[1] - int(ph*0.35))
+    cv.destroyAllWindows()"""
+    d = np.abs(top_left[0] - int(pw*0.45))
     if d == 0:
         waitTime = 0
     else:
