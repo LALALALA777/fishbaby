@@ -27,8 +27,10 @@ def get_time_interval():
     source = snapshot()
     time.sleep(1)
     target = snapshot()
-    #source = cv.imread('testpictures/f20.png', 0)
-    #target = cv.imread('testpictures/f21.png', 0)
+    #source = cv.imread('testpictures/f20.png')
+    #target = cv.imread('testpictures/f21.png')
+    cv.cvtColor(source, cv.COLOR_RGB2GRAY)
+    cv.cvtColor(target, cv.COLOR_RGB2GRAY)
     ph, pw = target.shape
     template = source[int(ph*0.35):int(ph*0.65), int(pw*0.45):int(pw*0.55)]
     res = cv.matchTemplate(target, template, cv.TM_SQDIFF_NORMED)
