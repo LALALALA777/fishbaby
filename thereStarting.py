@@ -35,17 +35,14 @@ def get_time_interval():
     template = source[int(ph*0.35):int(ph*0.65), int(pw*0.45):int(pw*0.55)]
     res = cv.matchTemplate(target, template, cv.TM_SQDIFF_NORMED)
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(res)
-    top_left = min_loc  # (x, y)
+    top_left = min_loc  # (x, y), see official document why take min_loc
     """bottom_right = (top_left[0] + template.shape[1], top_left[1] + template.shape[0])
     cv.rectangle(target, top_left, bottom_right, (255, 0, 0))
     cv.imshow('s', target)
     cv.waitKeyEx()
     cv.destroyAllWindows()"""
     d = np.abs(top_left[0] - int(pw*0.45))
-    if d == 0:
-        waitTime = 0
-    else:
-        waitTime = ph // d
+    waitTime = 0 if d == 0 else ph // d
     print("The time interval between two frames has calculated\n\twait time:", waitTime)
     return waitTime
 
@@ -92,4 +89,3 @@ if __name__ == '__main__':
     print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))"""
 
     main(waitTime=0, auto_interval=True)
-    get_time_interval()
