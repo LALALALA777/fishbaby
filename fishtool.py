@@ -2,17 +2,12 @@ import numpy as np
 from collections import Counter, Iterable
 from visTool import drawBBoxesWithKindAndLength
 from babydetector import get_fish_hw, get_real_boxes
-from visTool import show_image
-
-
-def get_fish_levels(criteria_fish_root):
-    pass
-
+from pprint import pprint
 
 
 def fish_angle(box):
     _, _, h, w = box
-    return np.arctan(h/w)
+    return np.round(np.arctan(h/w), 4)
 
 
 def estimate_fish_length(box):
@@ -47,7 +42,8 @@ class FishBBoxedCounter():
 
         self.counter = Counter()
         self.fish = list(map(get_fish_benchmarks, list(len_criteria)))
-        print(self.fish)
+        print('Each level fish info:')
+        pprint(self.fish, indent=4)
         self.lengthBase = [(i+1, j['radius']) for i, j in enumerate(self.fish)]
         self.lengthBase.sort(key=SecondofElement)
         print('Fish levels: ', self.lengthBase)

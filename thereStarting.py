@@ -1,5 +1,6 @@
 import numpy as np
 
+
 from babydetector import get_YOLO, get_output, get_bboxes, get_blobImg, directly_get_output
 from visTool import get_labels, show_image
 from fishtool import FishBBoxedCounter
@@ -7,6 +8,12 @@ import cv2 as cv
 import os
 from fromCamera import snapshot, launch_camera, close_camera
 import time
+import sys
+sys.path.append(r'/home/jiang/PycharmProjects/oanet/OANet/demo')
+sys.path.append(r'/home/jiang/PycharmProjects/oanet/OANet/core')
+from demo import match_interface
+
+
 
 # yolo config
 yolo_dir = 'yolov3'  # YOLO文件路径
@@ -25,15 +32,23 @@ crit_fish = [os.path.join(criteria_root, fishScale) for fishScale in fishScales]
 
 
 def get_time_interval():
-    pass
+    pre = snapshot()
+    pos = snapshot()
+    """cv.imshow('previous', pre)
+    cv.imshow('posterior', pos)"""
+
+    corr1, corr2 = match_interface(pre, pos)
+
     print("The time interval between two frames has calculated successfully")
     return
 
 
-def main():
+def main(auto_interval=False):
     fishCounter = FishBBoxedCounter(crit_fish)
     net = get_YOLO(configPath, weightsPath)
     if launch_camera(toggle_mode=0) is True:
+        if auto_interval:
+            sleepTime = get_time_interval()
         while cv.waitKey(2) != ord('q'):
             img = snapshot()
             if img is None:
@@ -47,9 +62,10 @@ def main():
                 break
         close_camera()
         print('Work finished.')
+        cv.destroyAllWindows()
         return fishCounter.get_count()
     else:
-        print('\033[0;31mSomething error!\033[0m')
+        print('\033[0;31mSomething error occurred in launch process !\033[0m')
         return None
 
 
@@ -66,6 +82,4 @@ if __name__ == '__main__':
     fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
     print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))"""
 
-    main()
-
-
+    main(auto_interval=True)
