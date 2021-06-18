@@ -1,8 +1,11 @@
 import numpy as np
 from collections import Counter, Iterable
-from visTool import drawBBoxesWithKindAndLength
+from visTool import drawBBoxesWithKindAndLength, show_image
 from babydetector import get_fish_hw, get_real_boxes
 from pprint import pprint
+
+
+referredRealLen = (218.9, 12)   # first element is in pixels, the other is in centimeter
 
 
 def fish_angle(box):
@@ -21,7 +24,7 @@ def get_fish_benchmarks(fishbaby_path):
     fish_hw = get_fish_hw(fishbaby_path, show=False)   # returned is (x, y), already is orthogonal of (w, h)
     dic['boxLength'] = max(fish_hw)
     dic['boxWidth'] = min(fish_hw)
-    box = [0, 0, dic['width'], dic['length']]
+    box = [0, 0, dic['boxWidth'], dic['boxLength']]
     dic['theta'] = fish_angle(box)
     dic['radius'] = int(estimate_fish_length(box))
     return dic
@@ -40,6 +43,7 @@ class FishBBoxedCounter():
         def SecondofElement(element):
             return element[1]
 
+        self.referredRealLen = referredRealLen
         self.counter = Counter()
         self.fish = list(map(get_fish_benchmarks, list(len_criteria)))
         print('Each level fish info:')
@@ -63,10 +67,11 @@ class FishBBoxedCounter():
             fish_len = estimate_fish_length(box)
             length[i] = fish_len
             kinds[i] = self.classify(fish_len)
-
+        length = self.real_length(length)
         if 'image' in kwargs.keys():
             img = kwargs['image']
             drawBBoxesWithKindAndLength(img, bboxes, lens=length, kinds=kinds)
+            show_image(img)
             return img
 
         self.counter.update(kinds)
@@ -76,9 +81,13 @@ class FishBBoxedCounter():
 
         @return: the number of what fish had counted so far
         """
-
         print('Fish statistics:', self.counter)
         return sum(self.counter.values())
+
+    def real_length(self, length: list):
+        l = np.array(length, dtype='float')
+        realLength = self.referredRealLen[1] * l / self.referredRealLen[0]  # referredRealLen=(pixels, cm)
+        return realLength
 
 
 if __name__ == '__main__':

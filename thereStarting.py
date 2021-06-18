@@ -20,7 +20,6 @@ fishSize = tuple()
 videoPath = 'testpictures/fs1.mp4'
 criteria_root = 'criteria_fish'
 fishScales = os.listdir(criteria_root)  # 不同level的鱼的图片文件名
-realLengthPath = os.path.join(criteria_root, fishScales.pop(fishScales.index('realFishLength.txt')))
 crit_fish = [os.path.join(criteria_root, fishScale) for fishScale in fishScales]
 
 
