@@ -19,8 +19,8 @@ def estimate_fish_length(box):
 def get_fish_benchmarks(fishbaby_path):
     dic = {}
     fish_hw = get_fish_hw(fishbaby_path, show=False)   # returned is (x, y), already is orthogonal of (w, h)
-    dic['length'] = max(fish_hw)
-    dic['width'] = min(fish_hw)
+    dic['boxLength'] = max(fish_hw)
+    dic['boxWidth'] = min(fish_hw)
     box = [0, 0, dic['width'], dic['length']]
     dic['theta'] = fish_angle(box)
     dic['radius'] = int(estimate_fish_length(box))
