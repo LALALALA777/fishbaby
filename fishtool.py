@@ -1,7 +1,7 @@
 import numpy as np
 from collections import Counter, Iterable
 from visTool import drawBBoxesWithKindAndLength, show_image
-from babydetector import get_fish_hw, get_real_boxes
+from babydetector import get_fish_hw, get_useful_boxes
 from pprint import pprint
 
 
@@ -60,7 +60,7 @@ class FishBBoxedCounter():
 
     def get_bboxed_fish_size(self, idxs, bboxes, **kwargs):
         kwargs = kwargs
-        bboxes = get_real_boxes(idxs, bboxes)
+        bboxes = get_useful_boxes(idxs, bboxes)
         kinds = [0] * len(bboxes)   # for convenient drawing
         length = [0] * len(bboxes)  # the same thing up here
         for i, box in enumerate(bboxes):

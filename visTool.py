@@ -26,7 +26,7 @@ def show_images_continuously(img):
 
 
 def show_image(img):
-    img = img[:, :, ::-1]
+    img = img[:, :, ::-1]   # plt defaults what image is RGB format
     plt.imshow(img)
     plt.yticks([])
     plt.xticks([])

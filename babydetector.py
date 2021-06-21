@@ -80,7 +80,7 @@ def get_labels(labelsPath):
     return labels
 
 
-def get_real_boxes(idxs, boxes):
+def get_useful_boxes(idxs, boxes):
     real = []
     if len(idxs)>0:
         for i in idxs.flatten():
@@ -132,7 +132,7 @@ def fast_video_process(v_path, net, fishsize, laserstation, shape=None):
     for n in range(len(frames)):
         out = [outs[0][n], outs[1][n], outs[2][n]]
         idxs, boxes, confidences, classIDs = get_bboxes(out, hw)
-        real_boxes = get_real_boxes(idxs, boxes)
+        real_boxes = get_useful_boxes(idxs, boxes)
         scaner.scan(real_boxes)
     print('Total num: {}'.format(scaner.get_count()))
     print('Runtime: {:.4f}'.format(time.time()-start))
@@ -153,7 +153,7 @@ def video_process(v_path, net, fishsize, laserstation, labelspath, show=False):
         blobImg = get_blobImg(img)
         layerOutputs = get_output(net, blobImg)
         idxs, boxes, confidences, classIDs = get_bboxes(layerOutputs, hw)
-        real_boxes = get_real_boxes(idxs, boxes)
+        real_boxes = get_useful_boxes(idxs, boxes)
         scanner.scan(real_boxes)
         if show:
             show_effect_picture(photo, img, idxs, boxes, confidences,
@@ -163,3 +163,32 @@ def video_process(v_path, net, fishsize, laserstation, labelspath, show=False):
     print('Fish Amount:{}'.format(scanner.get_count()))
     return
 
+
+def fill_hold(binaryImg, background='white'):
+    h, w = binaryImg.shape
+    fill = binaryImg.copy()
+    mask = np.zeros((h+2, w+2), np.uint8) + 255 if background == 'white' else np.zeros((h+2, w+2), np.uint8)
+    r, l = np.where(binaryImg == 255 if background == 'white' else binaryImg == 0)
+    seed = (l[0], r[0])
+    cv.floodFill(fill, mask, seedPoint=seed, newVal=0 if background == 'white' else 255)
+    fill = cv.bitwise_not(fill)
+    fill = binaryImg | fill
+    cv.imshow('filled', fill)
+
+def refine_bboxes(img, useful_bboxes):
+    bboxes = np.array(useful_bboxes, dtype=int)
+    bboxes = np.maximum(bboxes, 0)
+    for bbox in bboxes:
+        x, y, w, h = bbox
+        loc = img[y:y+h, x:x+w]
+        gray = cv.cvtColor(loc, cv.COLOR_RGB2GRAY)
+        #cv.imshow('gray', gray)
+        ret2, th2 = cv.threshold(gray, 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
+        #cv.imshow('OTSU', th2)
+        kernel = np.ones((5,5), dtype=np.uint8)
+        bi = cv.morphologyEx(th2, cv.MORPH_CLOSE, kernel)
+        cv.imshow('refine binary', bi)
+        fill_hold(bi, background='black')
+        cv.waitKey()
+
+    cv.destroyAllWindows()

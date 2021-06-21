@@ -1,5 +1,5 @@
 import numpy as np
-from babydetector import get_YOLO, get_output, get_bboxes, get_blobImg, directly_get_output
+from babydetector import get_YOLO, get_output, get_bboxes, get_blobImg, directly_get_output, refine_bboxes, get_useful_boxes
 from visTool import get_labels, show_image
 from fishtool import FishBBoxedCounter
 import cv2 as cv
@@ -76,7 +76,7 @@ def main(waitTime: int, auto_interval=False):
 
 
 if __name__ == '__main__':
-    """img = cv.imread(imgPath)
+    img = cv.imread(imgPath)
     fishCounter = FishBBoxedCounter(crit_fish)
     hw = img.shape[:2]
     net = get_YOLO(configPath, weightsPath)
@@ -84,8 +84,10 @@ if __name__ == '__main__':
     blobImg = get_blobImg(img)
     layerOutputs = get_output(net, blobImg)
     idxs, boxes, confidences, classIDs = get_bboxes(layerOutputs, hw)
+    dboxes = get_useful_boxes(idxs, boxes)
+    refine_bboxes(img, dboxes)
     names = get_labels(labelsPath)
-    fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
-    print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))"""
+    fishCounter.get_bboxed_fish_size(idxs, boxes)
+    print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))
 
     main(waitTime=0, auto_interval=True)
