@@ -221,8 +221,7 @@ def refine_bboxes(img, useful_bboxes, display=False):
         new.append(nxy)
 
     if display:
-        [cv.drawContours(img, [new[i]], 0, (255, 0, 0), 2) for i in range(len(new))]
-        cv.imshow('refined image', img)
-        cv.waitKey()
+        [cv.drawContours(img, [new[i]], 0, (255, 0, 0), 1) for i in range(len(new))]
+
         cv.destroyAllWindows()
     return new
