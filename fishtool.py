@@ -65,8 +65,8 @@ class FishBBoxedCounter():
         length = [0] * len(bboxes)  # the same thing up here
         for i, box in enumerate(bboxes):
             fish_len = estimate_fish_length(box)
-            length[i] = fish_len
             kinds[i] = self.classify(fish_len)
+            length[i] = fish_len
         length = self.real_length(length)
         if 'image' in kwargs.keys():
             img = kwargs['image']

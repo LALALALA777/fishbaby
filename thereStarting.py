@@ -84,10 +84,9 @@ if __name__ == '__main__':
     blobImg = get_blobImg(img)
     layerOutputs = get_output(net, blobImg)
     idxs, boxes, confidences, classIDs = get_bboxes(layerOutputs, hw)
-    dboxes = get_useful_boxes(idxs, boxes)
-    refine_bboxes(img, dboxes)
+    boxes = refine_bboxes(img, get_useful_boxes(idxs, boxes), display=True)
     names = get_labels(labelsPath)
-    fishCounter.get_bboxed_fish_size(idxs, boxes)
+    fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
     print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))
 
     main(waitTime=0, auto_interval=True)

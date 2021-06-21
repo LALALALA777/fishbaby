@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import cv2 as cv
 import time
@@ -93,6 +94,7 @@ def get_fish_hw(fish_path, show=False):
         fish = cv.imread(fish_path, cv.IMREAD_GRAYSCALE)
     else:
         fish = cv.cvtColor(fish_path, cv.COLOR_RGB2GRAY)
+
     y_min, x_min = fish.shape   # fish in here is gray scale
     y_max, x_max = 0, 0
     ret, t = cv.threshold(fish, 128, 255, cv.THRESH_OTSU)
@@ -164,31 +166,63 @@ def video_process(v_path, net, fishsize, laserstation, labelspath, show=False):
     return
 
 
-def fill_hold(binaryImg, background='white'):
+def fill_hold(binaryImg, background):   # abandon
     h, w = binaryImg.shape
     fill = binaryImg.copy()
-    mask = np.zeros((h+2, w+2), np.uint8) + 255 if background == 'white' else np.zeros((h+2, w+2), np.uint8)
-    r, l = np.where(binaryImg == 255 if background == 'white' else binaryImg == 0)
+    backC = 255 if background == 'white' else 0
+    mask = np.zeros((h+2, w+2), np.uint8)# + backC
+    r, l = np.where(binaryImg == backC)
     seed = (l[0], r[0])
-    cv.floodFill(fill, mask, seedPoint=seed, newVal=0 if background == 'white' else 255)
+    cv.floodFill(fill, mask, seedPoint=seed, newVal=255 - backC)
+    cv.imshow('filled', fill)
     fill = cv.bitwise_not(fill)
     fill = binaryImg | fill
-    cv.imshow('filled', fill)
+    cv.imshow('or', fill)
 
-def refine_bboxes(img, useful_bboxes):
-    bboxes = np.array(useful_bboxes, dtype=int)
+
+def refine_bboxes(img, useful_bboxes, display=False):
+    bboxes = np.array(useful_bboxes, dtype=np.int)
     bboxes = np.maximum(bboxes, 0)
+    new = []
     for bbox in bboxes:
         x, y, w, h = bbox
         loc = img[y:y+h, x:x+w]
         gray = cv.cvtColor(loc, cv.COLOR_RGB2GRAY)
-        #cv.imshow('gray', gray)
         ret2, th2 = cv.threshold(gray, 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
-        #cv.imshow('OTSU', th2)
         kernel = np.ones((5,5), dtype=np.uint8)
         bi = cv.morphologyEx(th2, cv.MORPH_CLOSE, kernel)
-        cv.imshow('refine binary', bi)
-        fill_hold(bi, background='black')
-        cv.waitKey()
+        bi = cv.bitwise_not(bi)
+        contours = cv.findContours(bi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
+        contoursLen = map(len, contours)
+        points = max(contoursLen)
+        for contour in contours[::-1]:
+            if len(contour) == points:
+                points = contour
+                break
+        rect = cv.minAreaRect(points)   # find white area
+        box = cv.boxPoints(rect)
+        box = np.int32(box)
+        nx = box[:, 0, np.newaxis] + x
+        ny = box[:, 1, np.newaxis] + y
+        nxy = np.concatenate((nx, ny), axis=1)
+        # show differences above connected components
+        if display:
+            cv.imshow('binary', bi)
+            areas = [cv2.contourArea(contours[i]) for i in range(len(contours))]
+            idx = np.argmax(areas)
+            [cv2.fillPoly(bi, [contours[i]], 0) for i in range(len(contours)) if i != idx]
+            cv.imshow('max connected component', bi)
+            [cv.circle(gray, box[i], 1, [0, 0, 0], 2) for i in range(len(box))]
+            cv.drawContours(gray, [points], 0, (0, 0, 0), 2)
+            cv.drawContours(gray, [box], 0, (0, 0, 0), 2)
+            cv.imshow('circle', gray)
+            cv.waitKey()
 
-    cv.destroyAllWindows()
+        new.append(nxy)
+
+    if display:
+        [cv.drawContours(img, [new[i]], 0, (255, 0, 0), 2) for i in range(len(new))]
+        cv.imshow('refined image', img)
+        cv.waitKey()
+        cv.destroyAllWindows()
+    return new
