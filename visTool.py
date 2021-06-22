@@ -66,10 +66,10 @@ def horizontally_joint_photos(photos: list):
     return np.hstack(photos)
 
 
-def drawBBoxesWithKindAndLength(img, bboxes, lens, kinds, color=(255, 0, 0)):
+def drawBBoxesWithKindAndLength(img, bboxes, lens, kinds, color=(0, 255, 255)):
     for i, bbox in enumerate(bboxes):
         x, y, w, h = bbox
         cv.rectangle(img, (x, y), (x + w, y + h), color, thickness=1)
         text = "{}: {:.2f}".format(kinds[i], lens[i])
-        cv.putText(img, text, (x, y-5), cv.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+        cv.putText(img, text, (x - 20 + w//2, y + h//2), cv.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
     return

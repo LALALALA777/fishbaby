@@ -69,8 +69,8 @@ def get_bboxes(layerOutputs, highWeight: tuple):
                 confidences.append(float(confidence))
                 classIDs.append(classID)
 
-    # 2）应用非最大值抑制(non-maxima suppression，nms)进一步筛掉
-    idxs = cv.dnn.NMSBoxes(boxes, confidences, CONFIDENCE, THRESHOLD) # boxes中，保留的box的索引index存入idxs(按自信度从大到小排序) non maximum suppression
+    # 2）apply non-maxima suppression，nms for further filter
+    idxs = cv.dnn.NMSBoxes(boxes, confidences, CONFIDENCE, THRESHOLD) # boxes中，保留的box的索引index存入idxs(按自信度从大到小排序)
     return idxs, boxes, confidences, classIDs
 
 
@@ -82,6 +82,7 @@ def get_labels(labelsPath):
 
 
 def get_useful_boxes(idxs, boxes):
+    # get genuine bboxes in idxs
     real = []
     if len(idxs)>0:
         for i in idxs.flatten():
@@ -181,6 +182,13 @@ def fill_hold(binaryImg, background):   # abandon
 
 
 def refine_bboxes(img, useful_bboxes, display=False):
+    """
+
+    @param img: snapshot fish image
+    @param useful_bboxes:
+    @param display: show processing
+    @return: reliable bboxes list
+    """
     bboxes = np.array(useful_bboxes, dtype=np.int)
     bboxes = np.maximum(bboxes, 0)
     new = []
@@ -215,13 +223,13 @@ def refine_bboxes(img, useful_bboxes, display=False):
             [cv.circle(gray, box[i], 1, [0, 0, 0], 2) for i in range(len(box))]
             cv.drawContours(gray, [points], 0, (0, 0, 0), 2)
             cv.drawContours(gray, [box], 0, (0, 0, 0), 2)
-            cv.imshow('circle', gray)
+            [cv.putText(gray, str(i), j, fontFace=cv.FONT_HERSHEY_SIMPLEX, fontScale=1, color=0) for i, j in enumerate(box)]
+            cv.imshow('info', gray)
             cv.waitKey()
 
         new.append(nxy)
 
     if display:
         [cv.drawContours(img, [new[i]], 0, (255, 0, 0), 1) for i in range(len(new))]
-
         cv.destroyAllWindows()
     return new

@@ -1,11 +1,11 @@
 import numpy as np
 from collections import Counter, Iterable
 from visTool import drawBBoxesWithKindAndLength, show_image
-from babydetector import get_fish_hw, get_useful_boxes
+from babydetector import get_fish_hw, get_useful_boxes, refine_bboxes
 from pprint import pprint
 
 
-referredRealLen = (218.9, 12)   # first element is in pixels, the other is in centimeter
+referredRealLen = (191.93, 12)   # first element is in pixels, the other is in centimeter
 
 
 def fish_angle(box):
@@ -13,9 +13,15 @@ def fish_angle(box):
     return np.round(np.arctan(h/w), 4)
 
 
-def estimate_fish_length(box):
-    _, _, h, w = box
-    length = np.sqrt((h**2 + w**2))
+def estimate_fish_length(box, refined=False):
+    if refined:
+        leftTop, rightTop, rightBottom, lefBottom = box
+        opposite = np.abs(rightBottom - rightTop)
+        adjacent = np.abs(rightBottom - lefBottom)
+        length = max(np.linalg.norm(adjacent), np.linalg.norm(opposite))
+    else:
+        _, _, h, w = box
+        length = np.sqrt((h**2 + w**2))
     return length
 
 
@@ -58,35 +64,33 @@ class FishBBoxedCounter():
             if length < hc:
                 return i
 
-    def get_bboxed_fish_size(self, idxs, bboxes, **kwargs):
+    def get_bboxed_fish_size(self, idxs, bboxes, img, **kwargs):
         kwargs = kwargs
         bboxes = get_useful_boxes(idxs, bboxes)
+        realBboxes = refine_bboxes(img, bboxes, display=False)
         kinds = [0] * len(bboxes)   # for convenient drawing
         length = [0] * len(bboxes)  # the same thing up here
-        for i, box in enumerate(bboxes):
-            fish_len = estimate_fish_length(box)
+        for i, box in enumerate(realBboxes):
+            fish_len = estimate_fish_length(box, refined=True)
             kinds[i] = self.classify(fish_len)
             length[i] = fish_len
         length = self.real_length(length)
-        if 'image' in kwargs.keys():
-            img = kwargs['image']
+        if 'display' in kwargs.keys():
             drawBBoxesWithKindAndLength(img, bboxes, lens=length, kinds=kinds)
             show_image(img)
-            return img
-
         self.counter.update(kinds)
+        return img
 
     def get_count(self):
         """
-
         @return: the number of what fish had counted so far
         """
         print('Fish statistics:', self.counter)
         return sum(self.counter.values())
 
     def real_length(self, length: list):
-        l = np.array(length, dtype='float')
-        realLength = self.referredRealLen[1] * l / self.referredRealLen[0]  # referredRealLen=(pixels, cm)
+        l = np.array(length, dtype=np.float)
+        realLength = self.referredRealLen[1] * l / self.referredRealLen[0]  # referred RealLen=(pixels, cm)
         return realLength
 
 
