@@ -6,6 +6,7 @@ from pprint import pprint
 
 
 referredRealLen = (191.93, 12)   # first element is in pixels, the other is in centimeter
+fishNameReal = 12
 
 
 def fish_angle(box):
@@ -26,6 +27,7 @@ def estimate_fish_length(box, refined=False):
 
 
 def get_fish_benchmarks(fishbaby_path):
+    # note that the orientation of fish poses should be horizontal or vertical
     dic = {}
     fish_hw = get_fish_hw(fishbaby_path, show=False)   # returned is (x, y), already is orthogonal of (w, h)
     dic['boxLength'] = max(fish_hw)
@@ -37,27 +39,28 @@ def get_fish_benchmarks(fishbaby_path):
 
 
 class FishBBoxedCounter():
-    def __init__(self, len_criteria: Iterable, max_fish_size=1000):
+    def __init__(self, len_criteria: Iterable, max_fish_size=np.iinfo('uint16').max):
         """
-        :param len_criteria: levels of different fish file name
+        :param len_criteria: levels of different fish file name path
         :param max_fish_size: ceiling of fish size
         """
 
         assert isinstance(len_criteria, Iterable), \
             'Criteria fish should be Iterable object'
 
-        def SecondofElement(element):
-            return element[1]
+        def sortByElement(element):
+            return element['boxLength']
 
         self.referredRealLen = referredRealLen
         self.counter = Counter()
         self.fish = list(map(get_fish_benchmarks, list(len_criteria)))
         print('Each level fish info:')
         pprint(self.fish, indent=4)
-        self.lengthBase = [(i+1, j['radius']) for i, j in enumerate(self.fish)]
-        self.lengthBase.sort(key=SecondofElement)
-        print('Fish levels: ', self.lengthBase)
-        self.lengthBase.append((len(self.lengthBase), max_fish_size))
+        self.fish.sort(key=sortByElement)
+        self.lengthBase = [(i+1, j['boxLength']) for i, j in enumerate(self.fish)]
+        self.lengthBase.append((len(self.lengthBase)+1, max_fish_size))
+        self.lengthBase.insert(0, (0, 0))
+        print('Fish levels (level, pixels): ', self.lengthBase)
 
     def classify(self, length):
         for i, hc in self.lengthBase:
