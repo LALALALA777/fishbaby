@@ -71,7 +71,7 @@ def main(waitTime: int, auto_interval=False):
                     break
         elif main_mode == 'init':
             levels = int(input('How much levels fish are:'))
-            print('{} photos will be take'.format(levels))
+            print('{} photos will be taken'.format(levels))
             for i in range(levels):
                 print("Press key c to determine this photo")
                 while cv.waitKey(1) != ord('c'):
