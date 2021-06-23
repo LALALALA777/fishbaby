@@ -16,12 +16,14 @@ labelsPath = os.path.join(yolo_dir, 'fishbaby.names')  # label名称
 imgPath = './snapshot/snap13.jpg'     # 测试图像
 fishPath = './testpictures/fish.png'  # 用于video得到fishSize
 laserStation = .618     # 图中扫描线百分比位置
-fishSize = tuple()
 videoPath = './testpictures/fs1.mp4'
 criteria_root = './criteria_fish'
 fishScales = os.listdir(criteria_root)  # 在root下不同level的鱼的图片文件名
 crit_fish = [os.path.join(criteria_root, fishScale) for fishScale in fishScales]
 
+camera_mode = 0
+main_mode = 'work'
+reset_referred_length = False
 
 def get_time_interval():
     source = snapshot()
@@ -50,22 +52,35 @@ def get_time_interval():
 def main(waitTime: int, auto_interval=False):
     fishCounter = FishBBoxedCounter(crit_fish)
     net = get_YOLO(configPath, weightsPath)
-    if launch_camera(toggle_mode=0) is True:
+    if launch_camera(toggle_mode=camera_mode) is True:
         if auto_interval:
             waitTime = get_time_interval()
         assert isinstance(waitTime, int), \
             '\033[0;31mTime interval between snapshot must be integral type. \033[0m'
-        while cv.waitKey(2) != ord('q'):
-            img = snapshot()
-            if img is None:
-                continue
-            elif isinstance(img, np.ndarray):
-                idxs, boxes, _, _ = directly_get_output(img, net)
-                img = fishCounter.get_bboxed_fish_size(idxs, boxes, img)
-                cv.imshow('cap', img)
-                time.sleep(waitTime)
-            elif img is False:
-                break
+        if main_mode == 'work':
+            while cv.waitKey(2) != ord('q'):
+                img = snapshot()
+                if img is None:
+                    continue
+                elif isinstance(img, np.ndarray):
+                    idxs, boxes, _, _ = directly_get_output(img, net)
+                    img = fishCounter.get_bboxed_fish_size(idxs, boxes, img)
+                    cv.imshow('cap', img)
+                    time.sleep(waitTime)
+                elif img is False:
+                    break
+        elif main_mode == 'init':
+            levels = int(input('How much levels fish are:'))
+            print('{} photos will be take'.format(levels))
+            for i in range(levels):
+                print("Press key c to determine this photo")
+                while cv.waitKey(1) != ord('c'):
+                    img = snapshot()
+                    cv.imshow('gripped image', img)
+                name = os.path.join(criteria_root, input('This fish (file) name:'))
+                cv.imwrite(name, img)
+                input('Press any key to next snapshot')
+
         close_camera()
         print('Work finished.')
         cv.destroyAllWindows()
@@ -77,7 +92,7 @@ def main(waitTime: int, auto_interval=False):
 
 if __name__ == '__main__':
     img = cv.imread(imgPath)
-    fishCounter = FishBBoxedCounter(crit_fish, reset=False)
+    fishCounter = FishBBoxedCounter(crit_fish, reset=reset_referred_length)
     hw = img.shape[:2]
     net = get_YOLO(configPath, weightsPath)
 
@@ -89,4 +104,8 @@ if __name__ == '__main__':
     fishCounter.get_bboxed_fish_size(idxs, boxes, img, display=True)
     print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))
 
+    if crit_fish is None and main_mode == 'work':
+        i = input('\033[0;35mNone criteria fish for classification, do you wanna take some?: yes or no\033[0m')
+        if i == 'yes':
+            main_mode = 'init'
     #main(waitTime=0, auto_interval=True)
