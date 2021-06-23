@@ -70,7 +70,7 @@ def main(waitTime: int, auto_interval=False):
                 elif img is False:
                     break
         elif main_mode == 'init':
-            levels = int(input('How much levels fish are:'))
+            levels = int(input('How much grade of fish are there:'))
             print('{} photos will be taken'.format(levels))
             for i in range(levels):
                 print("Press key c to determine this photo")
