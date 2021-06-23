@@ -5,8 +5,21 @@ from babydetector import get_fish_hw, get_useful_boxes, refine_bboxes
 from pprint import pprint
 
 
-referredRealLen = (191.93, 12)   # first element is in pixels, the other is in centimeter
-fishNameReal = 12
+def get_real_length(reset):
+    fishlen = None
+    try:
+        with open('length.txt', 'r') as f:
+            fishlen = f.readline().split()
+            fishlen = tuple(map(float, fishlen))
+    except:
+        pass
+    if fishlen is None or reset is True:
+        fishlen = input("According to previous printed, "
+                        "press a fish referred length with format ('pixel length' 'real length(cm))':\n")
+        with open('length.txt', 'w') as f:
+            f.write(fishlen)
+        fishlen = tuple(map(float, fishlen.split()))
+    return fishlen
 
 
 def fish_angle(box):
@@ -39,10 +52,11 @@ def get_fish_benchmarks(fishbaby_path):
 
 
 class FishBBoxedCounter():
-    def __init__(self, len_criteria: Iterable, max_fish_size=np.iinfo('uint16').max):
+    def __init__(self, len_criteria: Iterable, max_fish_size=np.iinfo('uint16').max, reset=False):
         """
-        :param len_criteria: levels of different fish file name path
-        :param max_fish_size: ceiling of fish size
+        @param len_criteria: different fish level
+        @param max_fish_size: upper limit of fish
+        @param reset: whether or not to reset real fish
         """
 
         assert isinstance(len_criteria, Iterable), \
@@ -51,16 +65,16 @@ class FishBBoxedCounter():
         def sortByElement(element):
             return element['boxLength']
 
-        self.referredRealLen = referredRealLen
         self.counter = Counter()
         self.fish = list(map(get_fish_benchmarks, list(len_criteria)))
         print('Each level fish info:')
-        pprint(self.fish, indent=4)
         self.fish.sort(key=sortByElement)
+        pprint(self.fish, indent=4)
         self.lengthBase = [(i+1, j['boxLength']) for i, j in enumerate(self.fish)]
         self.lengthBase.append((len(self.lengthBase)+1, max_fish_size))
         self.lengthBase.insert(0, (0, 0))
         print('Fish levels (level, pixels): ', self.lengthBase)
+        self.referredRealLen = get_real_length(reset=reset)  # first element is in pixels, the other is in centimeter
 
     def classify(self, length):
         for i, hc in self.lengthBase:
@@ -96,7 +110,3 @@ class FishBBoxedCounter():
         realLength = self.referredRealLen[1] * l / self.referredRealLen[0]  # referred RealLen=(pixels, cm)
         return realLength
 
-
-if __name__ == '__main__':
-    fishPath = 'testpictures/fish.png'
-    get_fish_benchmarks(fishPath)

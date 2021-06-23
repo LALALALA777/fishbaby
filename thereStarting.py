@@ -13,12 +13,12 @@ weightsPath = os.path.join(yolo_dir, 'yolov3-obj_30000.weights')  # 权重文件
 configPath = os.path.join(yolo_dir, 'yolov3-obj.cfg')  # 配置文件
 labelsPath = os.path.join(yolo_dir, 'fishbaby.names')  # label名称
 
-imgPath = 'snapshot/snap13.jpg'     # 测试图像
-fishPath = 'testpictures/fish.png'  # 用于video得到fishSize
+imgPath = './snapshot/snap13.jpg'     # 测试图像
+fishPath = './testpictures/fish.png'  # 用于video得到fishSize
 laserStation = .618     # 图中扫描线百分比位置
 fishSize = tuple()
-videoPath = 'testpictures/fs1.mp4'
-criteria_root = 'criteria_fish'
+videoPath = './testpictures/fs1.mp4'
+criteria_root = './criteria_fish'
 fishScales = os.listdir(criteria_root)  # 在root下不同level的鱼的图片文件名
 crit_fish = [os.path.join(criteria_root, fishScale) for fishScale in fishScales]
 
@@ -61,7 +61,7 @@ def main(waitTime: int, auto_interval=False):
                 continue
             elif isinstance(img, np.ndarray):
                 idxs, boxes, _, _ = directly_get_output(img, net)
-                img = fishCounter.get_bboxed_fish_size(idxs, boxes, image=img)
+                img = fishCounter.get_bboxed_fish_size(idxs, boxes, img)
                 cv.imshow('cap', img)
                 time.sleep(waitTime)
             elif img is False:
@@ -77,7 +77,7 @@ def main(waitTime: int, auto_interval=False):
 
 if __name__ == '__main__':
     img = cv.imread(imgPath)
-    fishCounter = FishBBoxedCounter(crit_fish)
+    fishCounter = FishBBoxedCounter(crit_fish, reset=False)
     hw = img.shape[:2]
     net = get_YOLO(configPath, weightsPath)
 
@@ -89,4 +89,4 @@ if __name__ == '__main__':
     fishCounter.get_bboxed_fish_size(idxs, boxes, img, display=True)
     print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))
 
-    main(waitTime=0, auto_interval=True)
+    #main(waitTime=0, auto_interval=True)

@@ -117,7 +117,7 @@ def get_fish_hw(fish_path, show=False):
         fish = cv.cvtColor(fish, cv.COLOR_GRAY2RGB)
         cv.rectangle(fish, (x_min, y_min), (x_max, y_max), (0, 0, 255), thickness=1)
         cv.drawContours(fish, contours, -1, (255, 2, 0), 2)
-        cv.imshow('s', fish)
+        cv.imshow('LW result', fish)
         cv.waitKey(0)
         cv.destroyAllWindows()
     return [x_max-x_min, y_max-y_min]     # return x, y
@@ -167,25 +167,10 @@ def video_process(v_path, net, fishsize, laserstation, labelspath, show=False):
     return
 
 
-def fill_hold(binaryImg, background):   # abandon
-    h, w = binaryImg.shape
-    fill = binaryImg.copy()
-    backC = 255 if background == 'white' else 0
-    mask = np.zeros((h+2, w+2), np.uint8)# + backC
-    r, l = np.where(binaryImg == backC)
-    seed = (l[0], r[0])
-    cv.floodFill(fill, mask, seedPoint=seed, newVal=255 - backC)
-    cv.imshow('filled', fill)
-    fill = cv.bitwise_not(fill)
-    fill = binaryImg | fill
-    cv.imshow('or', fill)
-
-
 def refine_bboxes(img, useful_bboxes, display=False):
     """
-
     @param img: snapshot fish image
-    @param useful_bboxes:
+    @param useful_bboxes: reliable bboxes
     @param display: show processing
     @return: reliable bboxes list
     """
