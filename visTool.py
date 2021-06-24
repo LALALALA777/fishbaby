@@ -69,7 +69,7 @@ def horizontally_joint_photos(photos: list):
 def drawBBoxesWithKindAndLength(img, bboxes, lens, kinds, color=(0, 255, 255)):
     for i, bbox in enumerate(bboxes):
         x, y, w, h = bbox
-        cv.rectangle(img, (x, y), (x + w, y + h), color, thickness=1)
+        cv.rectangle(img, (x, y), (x+w, y+h), color, thickness=1)
         text = "{}: {:.2f}".format(kinds[i], lens[i])
         cv.putText(img, text, (x - 20 + w//2, y + h//2), cv.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
     return

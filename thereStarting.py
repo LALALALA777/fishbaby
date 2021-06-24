@@ -49,28 +49,29 @@ def get_time_interval():
     return waitTime
 
 
-def main(waitTime: int, auto_interval=False):
-    fishCounter = FishBBoxedCounter(crit_fish)
+def main(waitTime, auto_interval=False):
+    fishCounter = FishBBoxedCounter(crit_fish, reset=reset_referred_length)
     net = get_YOLO(configPath, weightsPath)
     if launch_camera(toggle_mode=camera_mode) is True:
         if auto_interval:
             waitTime = get_time_interval()
-        assert isinstance(waitTime, int), \
-            '\033[0;31mTime interval between snapshot must be integral type. \033[0m'
         if main_mode == 'work':
             while cv.waitKey(2) != ord('q'):
+                start = time.time()
                 img = snapshot()
                 if img is None:
                     continue
                 elif isinstance(img, np.ndarray):
+                    cv.imshow('ori', img)
                     idxs, boxes, _, _ = directly_get_output(img, net)
-                    img = fishCounter.get_bboxed_fish_size(idxs, boxes, img)
-                    cv.imshow('cap', img)
+                    img = fishCounter.get_bboxed_fish_size(idxs, boxes, img, display=True)
+                    cv.imshow('Press key q to quit', img[:, :, ::-1])
+                    print('process one image take {} secs'.format(time.time()-start))
                     time.sleep(waitTime)
                 elif img is False:
                     break
         elif main_mode == 'init':
-            levels = int(input('How much levels fish are:'))
+            levels = int(input('How much grades of fish are there:'))
             print('{} photos will be take'.format(levels))
             for i in range(levels):
                 print("Press key c to determine this photo")
@@ -79,7 +80,7 @@ def main(waitTime: int, auto_interval=False):
                     cv.imshow('gripped image', img)
                 name = os.path.join(criteria_root, input('This fish (file) name:'))
                 cv.imwrite(name, img)
-                input('Press any key to next snapshot')
+                input('Type any word to next snapshot')
 
         close_camera()
         print('Work finished.')
@@ -91,7 +92,7 @@ def main(waitTime: int, auto_interval=False):
 
 
 if __name__ == '__main__':
-    img = cv.imread(imgPath)
+    """img = cv.imread(imgPath)
     fishCounter = FishBBoxedCounter(crit_fish, reset=reset_referred_length)
     hw = img.shape[:2]
     net = get_YOLO(configPath, weightsPath)
@@ -102,10 +103,10 @@ if __name__ == '__main__':
     #boxes = refine_bboxes(img, get_useful_boxes(idxs, boxes), display=True), show_image(img)
     names = get_labels(labelsPath)
     fishCounter.get_bboxed_fish_size(idxs, boxes, img, display=True)
-    print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))
+    print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))"""
 
     if crit_fish is None and main_mode == 'work':
-        i = input('\033[0;35mNone criteria fish for classification, do you wanna take some?: yes or no\033[0m')
+        i = input('\033[0;31mNone of criteria fish for classification, do you wanna take some?: yes or no\033[0m')
         if i == 'yes':
             main_mode = 'init'
-    #main(waitTime=0, auto_interval=True)
+    print(main(waitTime=0.22, auto_interval=False))

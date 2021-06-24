@@ -75,6 +75,7 @@ class FishBBoxedCounter():
         self.lengthBase.insert(0, (0, 0))
         print('Fish levels (level, pixels): ', self.lengthBase)
         self.referredRealLen = get_real_length(reset=reset)  # first element is in pixels, the other is in centimeter
+        self.reset = reset
 
     def classify(self, length):
         for i, hc in self.lengthBase:
@@ -84,18 +85,20 @@ class FishBBoxedCounter():
     def get_bboxed_fish_size(self, idxs, bboxes, img, **kwargs):
         kwargs = kwargs
         bboxes = get_useful_boxes(idxs, bboxes)
-        realBboxes = refine_bboxes(img, bboxes, display=False)
-        kinds = [0] * len(bboxes)   # for convenient drawing
-        length = [0] * len(bboxes)  # the same thing up here
-        for i, box in enumerate(realBboxes):
-            fish_len = estimate_fish_length(box, refined=True)
-            kinds[i] = self.classify(fish_len)
-            length[i] = fish_len
-        length = self.real_length(length)
-        if 'display' in kwargs.keys():
-            drawBBoxesWithKindAndLength(img, bboxes, lens=length, kinds=kinds)
-            show_image(img)
-        self.counter.update(kinds)
+        if bboxes:
+            realBboxes = refine_bboxes(img, bboxes, display=False)
+            #realBboxes = bboxes
+            kinds = [0] * len(bboxes)   # for convenient drawing
+            length = [0] * len(bboxes)  # the same thing up here
+            for i, box in enumerate(realBboxes):
+                fish_len = estimate_fish_length(box, refined=True)
+                kinds[i] = self.classify(fish_len)
+                length[i] = fish_len
+            length = self.real_length(length) if self.reset is False else length
+            if 'display' in kwargs.keys() and bboxes:
+                drawBBoxesWithKindAndLength(img, bboxes, lens=length, kinds=kinds)
+                #show_image(img)
+            self.counter.update(kinds)
         return img
 
     def get_count(self):
