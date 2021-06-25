@@ -3,6 +3,9 @@ import numpy as np
 import cv2 as cv
 import time
 from videoProcessing import FishScanProcessing, get_all_frames
+from sklearn import svm
+from sklearn.preprocessing import StandardScaler
+from matplotlib import pyplot as plt
 
 
 CONFIDENCE = 0.8  # 过滤弱检测的最小概率
@@ -167,7 +170,78 @@ def video_process(v_path, net, fishsize, laserstation, labelspath, show=False):
     return
 
 
-def refine_bboxes(img, useful_bboxes, display=False):
+def svm_train(samples, lables):
+    # scaler = StandardScaler()
+    # samples = scaler.fit_transform(samples)
+    clf = svm.LinearSVC()
+    clf.fit(samples, lables)
+    return clf
+
+
+shrinkRate = 0.5
+kernel3 = np.ones((3, 3), dtype=np.uint8)
+kernel5 = np.ones((5, 5), dtype=np.uint8)
+
+
+def nose_to_tail(binary, iterations=1):
+    binary = cv.morphologyEx(binary, cv.MORPH_CLOSE, kernel=np.ones((3, 3), dtype=np.uint8), iterations=iterations)
+    cv.imshow('nose to tail', binary)
+    return binary
+
+
+def separate(img):
+    #img = nose_to_tail(img)
+    cv.imshow('background', img)
+    dis_transform = cv.distanceTransform(img, cv.DIST_L2, cv.DIST_MASK_5)
+    _, sure_fg = cv.threshold(dis_transform, shrinkRate*dis_transform.max(), 255, 0)
+    sure_fg = cv.morphologyEx(sure_fg, cv.MORPH_CLOSE, kernel=kernel5, iterations=1)
+    sure_fg = np.uint8(sure_fg)
+    cv.imshow('foreground', sure_fg)
+    contours = cv.findContours(sure_fg, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
+    n = len(contours)
+    if n <= 1:
+        return nose_to_tail(img, iterations=2)
+    else:
+        v = -1
+        print('object:', n)
+        samples = []
+        labels = []
+        for i, contour in enumerate(contours):
+            cimg = np.zeros_like(sure_fg)
+            cv.drawContours(cimg, [contour], 0, 255, cv.FILLED)
+            #cv.imshow('filled', cimg)
+            x, y = np.where(cimg == 255)
+            c = np.vstack((x, y))
+            samples.append(c.transpose((1, 0)))
+            labels.append(np.zeros_like(x) + v**i)
+    samples = np.concatenate(samples)
+    labels = np.concatenate(labels)
+    clf = svm_train(samples, labels)
+    # w, b = clf.coef_[0], clf.intercept_[0]
+    # f = lambda x: int(-(b + x*w[0])/w[1])
+    # a = -w[0]/w[1]
+    # xx = np.arange(sure_fg.shape[1])
+    # yy = a * xx - (b/w[1])
+    # plt.plot(xx, yy, 'k-')
+    h, s = sure_fg.shape
+    pixels = np.array([[x, y] for x in range(h) for y in range(s)], dtype=np.int32)
+    # scaler = StandardScaler()
+    # r = clf.predict(scaler.fit_transform(pixels))
+    r = clf.predict(pixels)
+    t = np.zeros_like(sure_fg, dtype=np.uint8)
+    c1 = pixels[np.where(r == 1)]
+    for p in c1:
+        t[p[0], p[1]] = 255
+    #cv.imshow('t', t)
+    t = cv.bitwise_not(t) if len(np.where(t == 0)[0]) > .5*h*s else t
+    new_bi = cv.bitwise_and(t, img)
+    # cv.imshow('new t', t)
+    cv.imshow('new bi', new_bi)
+    cv.waitKey()
+    return nose_to_tail(new_bi, iterations=2)
+
+
+def refine_bboxes(img, useful_bboxes, display=False, show=False, ground='white'):
     """
     @param img: snapshot fish image
     @param useful_bboxes: reliable bboxes
@@ -179,12 +253,13 @@ def refine_bboxes(img, useful_bboxes, display=False):
     new = []
     for bbox in bboxes:
         x, y, w, h = bbox
-        loc = img[y:y+h, x:x+w]
+        loc = cv.cvtColor(img[y:y+h, x:x+w], cv.COLOR_BGR2HSV) if ground == 'green' else img[y:y+h, x:x+w]
         gray = cv.cvtColor(loc, cv.COLOR_RGB2GRAY)
-        ret2, th2 = cv.threshold(gray, 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
-        kernel = np.ones((5,5), dtype=np.uint8)
-        bi = cv.morphologyEx(th2, cv.MORPH_CLOSE, kernel)
-        bi = cv.bitwise_not(bi)
+        _, th2 = cv.threshold(gray, 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)    # white background
+        #bi = cv.morphologyEx(th2, cv.MORPH_CLOSE, kernel5)
+        bi = cv.bitwise_not(th2)     # black background
+        bi = cv.morphologyEx(bi, cv.MORPH_OPEN, kernel3, iterations=1)
+        bi = separate(bi)
         contours = cv.findContours(bi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
         contoursLen = map(len, contours)
         points = max(contoursLen)
@@ -192,6 +267,7 @@ def refine_bboxes(img, useful_bboxes, display=False):
             if len(contour) == points:
                 points = contour
                 break
+        #s = contour_separate(bi, points)
         rect = cv.minAreaRect(points)   # find white area
         box = cv.boxPoints(rect)
         box = np.int32(box)
@@ -199,8 +275,11 @@ def refine_bboxes(img, useful_bboxes, display=False):
         ny = box[:, 1, np.newaxis] + y
         nxy = np.concatenate((nx, ny), axis=1)
         # show differences above connected components
-        if display:
-            cv.imshow('binary', bi)
+        if show:
+            cv.imshow('ori', loc)
+            cv.imshow('OTSU', th2)
+            cv.imshow('morph', bi)
+            #cv.imshow('watershed', sep)
             areas = [cv2.contourArea(contours[i]) for i in range(len(contours))]
             idx = np.argmax(areas)
             [cv2.fillPoly(bi, [contours[i]], 0) for i in range(len(contours)) if i != idx]
@@ -211,10 +290,7 @@ def refine_bboxes(img, useful_bboxes, display=False):
             [cv.putText(gray, str(i), j, fontFace=cv.FONT_HERSHEY_SIMPLEX, fontScale=1, color=0) for i, j in enumerate(box)]
             cv.imshow('info', gray)
             cv.waitKey()
-
         new.append(nxy)
-
-    if display:
-        [cv.drawContours(img, [new[i]], 0, (255, 0, 0), 1) for i in range(len(new))]
-        cv.destroyAllWindows()
+    [cv.drawContours(img, [new[i]], 0, (255, 0, 0), 1) for i in range(len(new))] if display else None
+    cv.destroyAllWindows()
     return new

@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 from babydetector import get_YOLO, get_output, get_bboxes, get_blobImg, directly_get_output, refine_bboxes, get_useful_boxes
 from visTool import get_labels, show_image
@@ -13,7 +14,8 @@ weightsPath = os.path.join(yolo_dir, 'yolov3-obj_30000.weights')  # 权重文件
 configPath = os.path.join(yolo_dir, 'yolov3-obj.cfg')  # 配置文件
 labelsPath = os.path.join(yolo_dir, 'fishbaby.names')  # label名称
 
-imgPath = './snapshot/snap13.jpg'     # 测试图像
+#imgPath = './snapshot/snap13.jpg'     # 测试图像
+imgPath = './testpictures/f21.png'
 fishPath = './testpictures/fish.png'  # 用于video得到fishSize
 laserStation = .618     # 图中扫描线百分比位置
 videoPath = './testpictures/fs1.mp4'
@@ -24,6 +26,7 @@ crit_fish = [os.path.join(criteria_root, fishScale) for fishScale in fishScales]
 camera_mode = 0
 main_mode = 'work'
 reset_referred_length = False
+background = 'green'
 
 def get_time_interval():
     source = snapshot()
@@ -50,7 +53,7 @@ def get_time_interval():
 
 
 def main(waitTime, auto_interval=False):
-    fishCounter = FishBBoxedCounter(crit_fish, reset=reset_referred_length)
+    fishCounter = FishBBoxedCounter(crit_fish, reset=reset_referred_length, background=background)
     net = get_YOLO(configPath, weightsPath)
     if launch_camera(toggle_mode=camera_mode) is True:
         if auto_interval:
@@ -62,10 +65,11 @@ def main(waitTime, auto_interval=False):
                 if img is None:
                     continue
                 elif isinstance(img, np.ndarray):
+                    img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
                     cv.imshow('ori', img)
                     idxs, boxes, _, _ = directly_get_output(img, net)
                     img = fishCounter.get_bboxed_fish_size(idxs, boxes, img, display=True)
-                    cv.imshow('Press key q to quit', img[:, :, ::-1])
+                    cv.imshow('Press key q to quit', img)
                     print('process one image take {} secs'.format(time.time()-start))
                     time.sleep(waitTime)
                 elif img is False:
@@ -92,8 +96,8 @@ def main(waitTime, auto_interval=False):
 
 
 if __name__ == '__main__':
-    """img = cv.imread(imgPath)
-    fishCounter = FishBBoxedCounter(crit_fish, reset=reset_referred_length)
+    img = cv.imread(imgPath)
+    fishCounter = FishBBoxedCounter(crit_fish, reset=reset_referred_length, background=background)
     hw = img.shape[:2]
     net = get_YOLO(configPath, weightsPath)
 
@@ -103,10 +107,11 @@ if __name__ == '__main__':
     #boxes = refine_bboxes(img, get_useful_boxes(idxs, boxes), display=True), show_image(img)
     names = get_labels(labelsPath)
     fishCounter.get_bboxed_fish_size(idxs, boxes, img, display=True)
-    print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))"""
+    show_image(img)
+    print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))
 
     if crit_fish is None and main_mode == 'work':
         i = input('\033[0;31mNone of criteria fish for classification, do you wanna take some?: yes or no\033[0m')
         if i == 'yes':
             main_mode = 'init'
-    print(main(waitTime=0.22, auto_interval=False))
+    #print(main(waitTime=0.22, auto_interval=False))

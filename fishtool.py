@@ -52,7 +52,7 @@ def get_fish_benchmarks(fishbaby_path):
 
 
 class FishBBoxedCounter():
-    def __init__(self, len_criteria: Iterable, max_fish_size=np.iinfo('uint16').max, reset=False):
+    def __init__(self, len_criteria: Iterable, max_fish_size=np.iinfo('uint16').max, reset=False, background='white'):
         """
         @param len_criteria: different fish level
         @param max_fish_size: upper limit of fish
@@ -68,7 +68,7 @@ class FishBBoxedCounter():
         self.counter = Counter()
         self.fish = list(map(get_fish_benchmarks, list(len_criteria)))
         print('Each level fish info:')
-        self.fish.sort(key=sortByElement)
+        self.fish.sort(key=lambda elem: elem['boxLength'])
         pprint(self.fish, indent=4)
         self.lengthBase = [(i+1, j['boxLength']) for i, j in enumerate(self.fish)]
         self.lengthBase.append((len(self.lengthBase)+1, max_fish_size))
@@ -76,6 +76,7 @@ class FishBBoxedCounter():
         print('Fish levels (level, pixels): ', self.lengthBase)
         self.referredRealLen = get_real_length(reset=reset)  # first element is in pixels, the other is in centimeter
         self.reset = reset
+        self.background = background
 
     def classify(self, length):
         for i, hc in self.lengthBase:
@@ -86,7 +87,7 @@ class FishBBoxedCounter():
         kwargs = kwargs
         bboxes = get_useful_boxes(idxs, bboxes)
         if bboxes:
-            realBboxes = refine_bboxes(img, bboxes, display=False)
+            realBboxes = refine_bboxes(img, bboxes, ground=self.background, display=True)
             #realBboxes = bboxes
             kinds = [0] * len(bboxes)   # for convenient drawing
             length = [0] * len(bboxes)  # the same thing up here
@@ -97,7 +98,6 @@ class FishBBoxedCounter():
             length = self.real_length(length) if self.reset is False else length
             if 'display' in kwargs.keys() and bboxes:
                 drawBBoxesWithKindAndLength(img, bboxes, lens=length, kinds=kinds)
-                #show_image(img)
             self.counter.update(kinds)
         return img
 
