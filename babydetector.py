@@ -3,9 +3,8 @@ import numpy as np
 import cv2 as cv
 import time
 from videoProcessing import FishScanProcessing, get_all_frames
-from sklearn import svm
+from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
-from matplotlib import pyplot as plt
 
 
 CONFIDENCE = 0.8  # 过滤弱检测的最小概率
@@ -170,15 +169,7 @@ def video_process(v_path, net, fishsize, laserstation, labelspath, show=False):
     return
 
 
-def svm_train(samples, lables):
-    # scaler = StandardScaler()
-    # samples = scaler.fit_transform(samples)
-    clf = svm.LinearSVC()
-    clf.fit(samples, lables)
-    return clf
-
-
-shrinkRate = 0.5
+contractRate = 0.5
 kernel3 = np.ones((3, 3), dtype=np.uint8)
 kernel5 = np.ones((5, 5), dtype=np.uint8)
 
@@ -190,10 +181,9 @@ def nose_to_tail(binary, iterations=1):
 
 
 def separate(img):
-    #img = nose_to_tail(img)
     cv.imshow('background', img)
     dis_transform = cv.distanceTransform(img, cv.DIST_L2, cv.DIST_MASK_5)
-    _, sure_fg = cv.threshold(dis_transform, shrinkRate*dis_transform.max(), 255, 0)
+    _, sure_fg = cv.threshold(dis_transform, contractRate*dis_transform.max(), 255, 0)
     sure_fg = cv.morphologyEx(sure_fg, cv.MORPH_CLOSE, kernel=kernel5, iterations=1)
     sure_fg = np.uint8(sure_fg)
     cv.imshow('foreground', sure_fg)
@@ -202,62 +192,53 @@ def separate(img):
     if n <= 1:
         return nose_to_tail(img, iterations=2)
     else:
-        v = -1
-        print('object:', n)
         samples = []
         labels = []
         for i, contour in enumerate(contours):
             cimg = np.zeros_like(sure_fg)
             cv.drawContours(cimg, [contour], 0, 255, cv.FILLED)
-            #cv.imshow('filled', cimg)
             x, y = np.where(cimg == 255)
             c = np.vstack((x, y))
             samples.append(c.transpose((1, 0)))
-            labels.append(np.zeros_like(x) + v**i)
+            labels.append(np.zeros_like(x) + i)
     samples = np.concatenate(samples)
     labels = np.concatenate(labels)
-    clf = svm_train(samples, labels)
-    # w, b = clf.coef_[0], clf.intercept_[0]
-    # f = lambda x: int(-(b + x*w[0])/w[1])
-    # a = -w[0]/w[1]
-    # xx = np.arange(sure_fg.shape[1])
-    # yy = a * xx - (b/w[1])
-    # plt.plot(xx, yy, 'k-')
     h, s = sure_fg.shape
-    pixels = np.array([[x, y] for x in range(h) for y in range(s)], dtype=np.int32)
-    # scaler = StandardScaler()
-    # r = clf.predict(scaler.fit_transform(pixels))
-    r = clf.predict(pixels)
-    t = np.zeros_like(sure_fg, dtype=np.uint8)
-    c1 = pixels[np.where(r == 1)]
-    for p in c1:
-        t[p[0], p[1]] = 255
-    #cv.imshow('t', t)
-    t = cv.bitwise_not(t) if len(np.where(t == 0)[0]) > .5*h*s else t
-    new_bi = cv.bitwise_and(t, img)
-    # cv.imshow('new t', t)
-    cv.imshow('new bi', new_bi)
+    clf = LogisticRegression().fit(samples, labels)
+    new_bi = img.copy()
+    for i in range(len(clf.coef_)):
+        w, b = clf.coef_[i], clf.intercept_[i]
+        f = lambda x: int(-(b + x*w[0])/w[1])
+        for x in range(h):
+            y = f(x)
+            new_bi[x, y-1:y+1] = 0
+    cv.imshow('new binary', new_bi)
+    # pixels = np.array([[x, y] for x in range(h) for y in range(s)], dtype=np.int32)
+    # # r = clf.predict(scaler.fit_transform(pixels))
+    # r = clf.predict(pixels)
+    # t = np.zeros_like(sure_fg, dtype=np.uint8)
+    # c1 = pixels[np.where(r == 1)]
+    # for p in c1:
+    #     t[p[0], p[1]] = 255
+    # t = cv.bitwise_not(t) if len(np.where(t == 0)[0]) > .5*h*s else t
+    # new_bi = cv.bitwise_and(t, img)
+    # cv.imshow('new bi', new_bi)
     cv.waitKey()
-    return nose_to_tail(new_bi, iterations=2)
+    return new_bi
 
 
-def refine_bboxes(img, useful_bboxes, display=False, show=False, ground='white'):
-    """
-    @param img: snapshot fish image
-    @param useful_bboxes: reliable bboxes
-    @param display: show processing
-    @return: reliable bboxes list
-    """
+def refine_bboxes(img, useful_bboxes, ground='white', display=False, show=False):
     bboxes = np.array(useful_bboxes, dtype=np.int)
     bboxes = np.maximum(bboxes, 0)
     new = []
     for bbox in bboxes:
         x, y, w, h = bbox
-        loc = cv.cvtColor(img[y:y+h, x:x+w], cv.COLOR_BGR2HSV) if ground == 'green' else img[y:y+h, x:x+w]
+        loc = img[y:y+h, x:x+w]
+        loc = cv.cvtColor(loc, cv.COLOR_BGR2HSV) if ground == 'green' else loc
         gray = cv.cvtColor(loc, cv.COLOR_RGB2GRAY)
-        _, th2 = cv.threshold(gray, 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)    # white background
+        _, th = cv.threshold(gray, 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)    # white background
         #bi = cv.morphologyEx(th2, cv.MORPH_CLOSE, kernel5)
-        bi = cv.bitwise_not(th2)     # black background
+        bi = cv.bitwise_not(th)     # black background
         bi = cv.morphologyEx(bi, cv.MORPH_OPEN, kernel3, iterations=1)
         bi = separate(bi)
         contours = cv.findContours(bi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
@@ -277,7 +258,7 @@ def refine_bboxes(img, useful_bboxes, display=False, show=False, ground='white')
         # show differences above connected components
         if show:
             cv.imshow('ori', loc)
-            cv.imshow('OTSU', th2)
+            cv.imshow('OTSU', th)
             cv.imshow('morph', bi)
             #cv.imshow('watershed', sep)
             areas = [cv2.contourArea(contours[i]) for i in range(len(contours))]
