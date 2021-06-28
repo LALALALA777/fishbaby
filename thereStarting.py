@@ -15,7 +15,7 @@ configPath = os.path.join(yolo_dir, 'yolov3-obj.cfg')  # 配置文件
 labelsPath = os.path.join(yolo_dir, 'fishbaby.names')  # label名称
 
 #imgPath = './snapshot/snap13.jpg'     # 测试图像
-imgPath = './testpictures/f21.png'
+imgPath = './testpictures/f23.png'
 fishPath = './testpictures/fish.png'  # 用于video得到fishSize
 laserStation = .618     # 图中扫描线百分比位置
 videoPath = './testpictures/fs1.mp4'
@@ -26,7 +26,7 @@ crit_fish = [os.path.join(criteria_root, fishScale) for fishScale in fishScales]
 camera_mode = 0
 main_mode = 'work'
 reset_referred_length = False
-background = 'green'
+background = 'black'
 
 def get_time_interval():
     source = snapshot()
@@ -66,7 +66,7 @@ def main(waitTime, auto_interval=False):
                     continue
                 elif isinstance(img, np.ndarray):
                     img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-                    cv.imshow('ori', img)
+                    #cv.imshow('ori', img)
                     idxs, boxes, _, _ = directly_get_output(img, net)
                     img = fishCounter.get_bboxed_fish_size(idxs, boxes, img, display=True)
                     cv.imshow('Press key q to quit', img)

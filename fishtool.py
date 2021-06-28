@@ -62,9 +62,6 @@ class FishBBoxedCounter():
         assert isinstance(len_criteria, Iterable), \
             'Criteria fish should be Iterable object'
 
-        def sortByElement(element):
-            return element['boxLength']
-
         self.counter = Counter()
         self.fish = list(map(get_fish_benchmarks, list(len_criteria)))
         print('Each level fish info:')
@@ -87,7 +84,7 @@ class FishBBoxedCounter():
         kwargs = kwargs
         bboxes = get_useful_boxes(idxs, bboxes)
         if bboxes:
-            realBboxes = refine_bboxes(img, bboxes, ground=self.background, display=True)
+            realBboxes = refine_bboxes(img, bboxes, ground=self.background, display=True, show=True)
             #realBboxes = bboxes
             kinds = [0] * len(bboxes)   # for convenient drawing
             length = [0] * len(bboxes)  # the same thing up here
