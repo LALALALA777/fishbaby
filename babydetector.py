@@ -7,7 +7,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
 
-CONFIDENCE = 0.8  # 过滤弱检测的最小概率
+CONFIDENCE = 0.1  # 过滤弱检测的最小概率
 THRESHOLD = 0.5  # 非最大值抑制阈值,  重叠面积比小于这个的框保留
 color = (0, 255, 0)
 
@@ -169,30 +169,27 @@ def video_process(v_path, net, fishsize, laserstation, labelspath, show=False):
     return
 
 
-contractRate = 0.6
+contractRate = 0.3
 kernel3 = np.ones((3, 3), dtype=np.uint8)
 kernel5 = np.ones((5, 5), dtype=np.uint8)
-
-
-def nose_to_tail(binary, iterations=1):
-    binary = cv.morphologyEx(binary, cv.MORPH_CLOSE, kernel=np.ones((3, 3), dtype=np.uint8), iterations=iterations)
-    #cv.imshow('nose to tail', binary)
-    return binary
+kernelCross = cv.getStructuringElement(cv.MORPH_CROSS, (3, 3))
 
 
 def separate(img, show):
     # img = background
     bg = img.copy()
-    #bg = cv.morphologyEx(bg, cv.MORPH_CLOSE, kernel3)
-    bg = cv.erode(bg, kernel3, iterations=2)
+    #cv.imshow('bg', bg)
+    bg = cv.erode(bg, kernel3, iterations=1)
     bg = cv.morphologyEx(bg, cv.MORPH_CLOSE, kernel3)
+
     dis_transform = cv.distanceTransform(bg, cv.DIST_L2, cv.DIST_MASK_5)
     _, sure_fg = cv.threshold(dis_transform, contractRate*dis_transform.max(), 255, 0)
-    sure_fg = cv.morphologyEx(sure_fg, cv.MORPH_CLOSE, kernel=kernel5, iterations=1)
+    sure_fg = cv.morphologyEx(sure_fg, cv.MORPH_OPEN, kernel=kernelCross, iterations=1)
     sure_fg = np.uint8(sure_fg)
+    #cv.imshow('fg', sure_fg)
+    #cv.waitKey()
     contours = cv.findContours(sure_fg, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
     contours = [contour for contour in contours if len(contour) > 10]
-    print(len(contours))
     n = len(contours)
     if n <= 1:
         if show:
@@ -250,7 +247,6 @@ def refine_bboxes(img, useful_bboxes, ground='white', display=False, show=False)
         _, th = cv.threshold(gray, 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)    # white background
         #bi = cv.morphologyEx(th2, cv.MORPH_CLOSE, kernel5)
         th = cv.bitwise_not(th) if ground != 'black' else th
-        #th = cv.morphologyEx(th, cv.MORPH_OPEN, kernel5, iterations=1)
         bi = separate(img=th, show=show) if ground != 'white' else th
         contours = cv.findContours(bi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
         contoursLen = map(len, contours)
@@ -285,5 +281,123 @@ def refine_bboxes(img, useful_bboxes, ground='white', display=False, show=False)
             cv.waitKey()
         new.append(nxy)
     [cv.drawContours(img, [new[i]], 0, (255, 0, 0), 1) for i in range(len(new))] if display else None
-    cv.destroyAllWindows()
     return new
+
+
+class BBoxRefiner():
+    def __init__(self, background, fgRate, display=False, show=False):
+        self.fgRate = fgRate
+        self.kernel3 = np.ones((3, 3), dtype=np.uint8)
+        self.kernel5 = np.ones((5, 5), dtype=np.uint8)
+        self.kernelCross = cv.getStructuringElement(cv.MORPH_CROSS, (3, 3))
+        self.display = display
+        self.show = show
+        self.bg = background
+        self.color = 255 if background == 'black' else 0
+
+    def refine(self, img, bboxes):
+        bboxes = np.array(bboxes, dtype=np.int)
+        bboxes = np.maximum(bboxes, 0)
+        new = []
+        for bbox in bboxes:
+            x, y, w, h = bbox
+            loc = img[y:y + h, x:x + w]
+            loc = cv.cvtColor(loc, cv.COLOR_BGR2HSV) if self.bg != 'white' else loc
+            gray = cv.cvtColor(loc, cv.COLOR_RGB2GRAY)
+            _, th = cv.threshold(gray, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)  # white background
+            # bi = cv.morphologyEx(th2, cv.MORPH_CLOSE, self.kernel5)
+            th = cv.bitwise_not(th) if self.bg != 'black' else th
+            bi = self.separate(th) if self.bg != 'white' else th
+            contours = cv.findContours(bi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
+            contoursLen = map(len, contours)
+            points = max(contoursLen)
+            for contour in contours[::-1]:
+                if len(contour) == points:
+                    points = contour
+                    break
+            # s = contour_separate(bi, points)
+            rect = cv.minAreaRect(points)  # find white area
+            box = cv.boxPoints(rect)
+            box = np.int32(box)  # each box is 4 * 2 (left top, right top, right bottom, left bottom) * (x, y)
+            nx = box[:, 0, np.newaxis] + x
+            ny = box[:, 1, np.newaxis] + y
+            nxy = np.concatenate((nx, ny), axis=1)
+            # show differences above connected components
+            if self.show:
+                cv.imshow('original', loc)
+                cv.imshow('threshold', th)
+                cv.imshow('new binary', bi)
+                # cv.imshow('watershed', sep)
+                areas = [cv2.contourArea(contours[i]) for i in range(len(contours))]
+                idx = np.argmax(areas)
+                [cv2.fillPoly(bi, [contours[i]], 0) for i in range(len(contours)) if i != idx]
+                cv.imshow('max connected component', bi)
+                [cv.circle(gray, box[i], 1, [0, 0, 0], 2) for i in range(len(box))]
+                cv.drawContours(gray, [points], 0, self.color, 2)
+                cv.drawContours(gray, [box], 0, self.color, 2)
+                [cv.putText(gray, str(i), j, fontFace=cv.FONT_HERSHEY_SIMPLEX, fontScale=1, color=self.color) for i, j in
+                 enumerate(box)]
+                cv.imshow('result', gray)
+                cv.waitKey()
+            new.append(nxy)
+        [cv.drawContours(img, [new[i]], 0, (255, 0, 0), 1) for i in range(len(new))] if self.display else None
+        return new
+
+    def separate(self, img):
+        # img = background
+        bg = img.copy()
+        # cv.imshow('bg', bg)
+        bg = cv.erode(bg, self.kernel3, iterations=1)
+        bg = cv.morphologyEx(bg, cv.MORPH_CLOSE, self.kernel3)
+        dis_transform = cv.distanceTransform(bg, cv.DIST_L2, cv.DIST_MASK_5)
+        _, sure_fg = cv.threshold(dis_transform, self.fgRate * dis_transform.max(), 255, 0)
+        sure_fg = cv.morphologyEx(sure_fg, cv.MORPH_OPEN, kernel=self.kernelCross, iterations=1)
+        sure_fg = np.uint8(sure_fg)
+        # cv.imshow('fg', sure_fg)
+        # cv.waitKey()
+        contours = cv.findContours(sure_fg, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
+        contours = [contour for contour in contours if len(contour) > 10]
+        n = len(contours)
+        if n <= 1:
+            if self.show:
+                cv.imshow('background', bg)
+                cv.imshow('foreground', sure_fg)
+                cv.waitKey()
+            return img
+        else:
+            samples = []
+            labels = []
+            for i, contour in enumerate(contours):
+                cimg = np.zeros_like(sure_fg)
+                cv.drawContours(cimg, [contour], 0, 255, cv.FILLED)
+                x, y = np.where(cimg == 255)
+                c = np.vstack((x, y))
+                samples.append(c.transpose((1, 0)))
+                labels.append(np.zeros_like(x) + i)
+        samples = np.concatenate(samples)
+        labels = np.concatenate(labels)
+        new_bi = img.copy()
+        h, s = sure_fg.shape
+        clf = LogisticRegression().fit(samples, labels)
+        for i in range(len(clf.coef_)):
+            w, b = clf.coef_[i], clf.intercept_[i]
+            f = lambda x: int(-(b + x * w[0]) / w[1])
+            for x in range(h):
+                y = f(x)
+                new_bi[x, y - 2:y + 2] = 0
+        if self.show:
+            if n > 2:
+                print(
+                    'This local patch contains components more than 2, causing decision boundary there showed has wrong')
+            cv.imshow('background', bg)
+            cv.imshow('foreground', sure_fg)
+            pixels = np.array([[x, y] for x in range(h) for y in range(s)], dtype=np.int32)
+            r = clf.predict(pixels)
+            db = np.zeros_like(sure_fg, dtype=np.uint8)
+            c1 = pixels[np.where(r == 1)]
+            for p in c1:
+                db[p[0], p[1]] = 255
+            db = cv.bitwise_not(db) if len(np.where(db == 0)[0]) > .5 * h * s else db
+            cv.imshow('decision boundary', db)
+            cv.waitKey()
+        return new_bi

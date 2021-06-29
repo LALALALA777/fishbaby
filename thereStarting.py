@@ -27,6 +27,7 @@ camera_mode = 0
 main_mode = 'work'
 reset_referred_length = False
 background = 'black'
+foregroundRate = .3
 
 def get_time_interval():
     source = snapshot()
@@ -53,7 +54,8 @@ def get_time_interval():
 
 
 def main(waitTime, auto_interval=False):
-    fishCounter = FishBBoxedCounter(crit_fish, reset=reset_referred_length, background=background)
+    fishCounter = FishBBoxedCounter(crit_fish, reset=reset_referred_length, background=background, fgRate=foregroundRate,
+                                    show=False, display=True)
     net = get_YOLO(configPath, weightsPath)
     if launch_camera(toggle_mode=camera_mode) is True:
         if auto_interval:
@@ -68,7 +70,7 @@ def main(waitTime, auto_interval=False):
                     img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
                     #cv.imshow('ori', img)
                     idxs, boxes, _, _ = directly_get_output(img, net)
-                    img = fishCounter.get_bboxed_fish_size(idxs, boxes, img, display=True)
+                    img = fishCounter.get_bboxed_fish_size(idxs, boxes, img)
                     cv.imshow('Press key q to quit', img)
                     print('process one image take {} secs'.format(time.time()-start))
                     time.sleep(waitTime)
@@ -97,7 +99,7 @@ def main(waitTime, auto_interval=False):
 
 if __name__ == '__main__':
     img = cv.imread(imgPath)
-    fishCounter = FishBBoxedCounter(crit_fish, reset=reset_referred_length, background=background)
+    fishCounter = FishBBoxedCounter(crit_fish, reset=reset_referred_length, background=background, display=True)
     hw = img.shape[:2]
     net = get_YOLO(configPath, weightsPath)
 
@@ -106,7 +108,7 @@ if __name__ == '__main__':
     idxs, boxes, confidences, classIDs = get_bboxes(layerOutputs, hw)
     #boxes = refine_bboxes(img, get_useful_boxes(idxs, boxes), display=True), show_image(img)
     names = get_labels(labelsPath)
-    fishCounter.get_bboxed_fish_size(idxs, boxes, img, display=True)
+    fishCounter.get_bboxed_fish_size(idxs, boxes, img)
     show_image(img)
     print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))
 
@@ -114,4 +116,4 @@ if __name__ == '__main__':
         i = input('\033[0;31mNone of criteria fish for classification, do you wanna take some?: yes or no\033[0m')
         if i == 'yes':
             main_mode = 'init'
-    #print(main(waitTime=0.22, auto_interval=False))
+    #print(main(waitTime=0.01, auto_interval=False))

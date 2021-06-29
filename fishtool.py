@@ -1,7 +1,7 @@
 import numpy as np
 from collections import Counter, Iterable
 from visTool import drawBBoxesWithKindAndLength, show_image
-from babydetector import get_fish_hw, get_useful_boxes, refine_bboxes
+from babydetector import get_fish_hw, get_useful_boxes, refine_bboxes, BBoxRefiner
 from pprint import pprint
 
 
@@ -52,16 +52,12 @@ def get_fish_benchmarks(fishbaby_path):
 
 
 class FishBBoxedCounter():
-    def __init__(self, len_criteria: Iterable, max_fish_size=np.iinfo('uint16').max, reset=False, background='white'):
-        """
-        @param len_criteria: different fish level
-        @param max_fish_size: upper limit of fish
-        @param reset: whether or not to reset real fish
-        """
+    def __init__(self, len_criteria: Iterable, max_fish_size=np.iinfo('uint16').max,
+                 reset=False, background='black', fgRate=.3,  **kwargs):
 
         assert isinstance(len_criteria, Iterable), \
             'Criteria fish should be Iterable object'
-
+        kwargs = kwargs
         self.counter = Counter()
         self.fish = list(map(get_fish_benchmarks, list(len_criteria)))
         print('Each level fish info:')
@@ -73,18 +69,20 @@ class FishBBoxedCounter():
         print('Fish levels (level, pixels): ', self.lengthBase)
         self.referredRealLen = get_real_length(reset=reset)  # first element is in pixels, the other is in centimeter
         self.reset = reset
-        self.background = background
+        self.display = kwargs['display'] if 'display' in kwargs.keys() else False
+        show = kwargs['show'] if 'show' in kwargs.keys() else False
+        self.bboxesRefiner = BBoxRefiner(background=background, fgRate=fgRate, show=show, display=self.display)
 
     def classify(self, length):
         for i, hc in self.lengthBase:
             if length < hc:
                 return i
 
-    def get_bboxed_fish_size(self, idxs, bboxes, img, **kwargs):
-        kwargs = kwargs
+    def get_bboxed_fish_size(self, idxs, bboxes, img):
         bboxes = get_useful_boxes(idxs, bboxes)
         if bboxes:
-            realBboxes = refine_bboxes(img, bboxes, ground=self.background, display=True, show=True)
+            realBboxes = self.bboxesRefiner.refine(img, bboxes)
+            #realBboxes = refine_bboxes(img, bboxes, ground=self.background, display=True, show=False)
             #realBboxes = bboxes
             kinds = [0] * len(bboxes)   # for convenient drawing
             length = [0] * len(bboxes)  # the same thing up here
@@ -93,7 +91,7 @@ class FishBBoxedCounter():
                 kinds[i] = self.classify(fish_len)
                 length[i] = fish_len
             length = self.real_length(length) if self.reset is False else length
-            if 'display' in kwargs.keys() and bboxes:
+            if self.display and bboxes:
                 drawBBoxesWithKindAndLength(img, bboxes, lens=length, kinds=kinds)
             self.counter.update(kinds)
         return img
