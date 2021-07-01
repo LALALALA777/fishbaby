@@ -3,20 +3,24 @@ from collections import Counter, Iterable
 from visTool import drawBBoxesWithKindAndLength, show_image
 from babydetector import get_fish_hw, get_useful_boxes, refine_bboxes, BBoxRefiner
 from pprint import pprint
+import os
+
+root = os.path.split(os.path.realpath(__file__))[0]
+lenpath = os.path.join(root, 'length.txt')
 
 
-def get_real_length(reset):
+def get_real_length_from_txt(reset):
     fishlen = None
     try:
-        with open('length.txt', 'r') as f:
+        with open(lenpath, 'r') as f:
             fishlen = f.readline().split()
             fishlen = tuple(map(float, fishlen))
     except:
         pass
-    if fishlen is None or reset is True:
+    if not fishlen or reset is True:
         fishlen = input("According to previous printed, "
                         "press a fish referred length with format ('pixel length' 'real length(cm))':\n")
-        with open('length.txt', 'w') as f:
+        with open(lenpath, 'w') as f:
             f.write(fishlen)
         fishlen = tuple(map(float, fishlen.split()))
     return fishlen
@@ -43,7 +47,7 @@ def get_fish_benchmarks(fishbaby_path):
     # note that the orientation of fish poses should be horizontal or vertical
     dic = {}
     fish_hw = get_fish_hw(fishbaby_path, show=False)   # returned is (x, y), already is orthogonal of (w, h)
-    dic['boxLength'] = max(fish_hw)
+    dic['boxLength'] = max(fish_hw) - 0
     dic['boxWidth'] = min(fish_hw)
     box = [0, 0, dic['boxWidth'], dic['boxLength']]
     dic['theta'] = fish_angle(box)
@@ -67,9 +71,9 @@ class FishBBoxedCounter():
         self.lengthBase.append((len(self.lengthBase)+1, max_fish_size))
         self.lengthBase.insert(0, (0, 0))
         print('Fish levels (level, pixels): ', self.lengthBase)
-        self.referredRealLen = get_real_length(reset=reset)  # first element is in pixels, the other is in centimeter
+        self.referredRealLen = get_real_length_from_txt(reset=reset)  # first element is in pixels, the other is in centimeter
         self.reset = reset
-        self.display = kwargs['display'] if 'display' in kwargs.keys() else False
+        self.display = kwargs['display'] if 'display' in kwargs.keys() and kwargs['display'] is True else False
         show = kwargs['show'] if 'show' in kwargs.keys() else False
         self.bboxesRefiner = BBoxRefiner(background=background, fgRate=fgRate, show=show, display=self.display)
 
@@ -82,8 +86,6 @@ class FishBBoxedCounter():
         bboxes = get_useful_boxes(idxs, bboxes)
         if bboxes:
             realBboxes = self.bboxesRefiner.refine(img, bboxes)
-            #realBboxes = refine_bboxes(img, bboxes, ground=self.background, display=True, show=False)
-            #realBboxes = bboxes
             kinds = [0] * len(bboxes)   # for convenient drawing
             length = [0] * len(bboxes)  # the same thing up here
             for i, box in enumerate(realBboxes):

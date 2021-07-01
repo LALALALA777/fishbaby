@@ -7,27 +7,34 @@ import cv2 as cv
 import os
 from fromCamera import snapshot, launch_camera, close_camera
 import time
+import sys
+sys.path.append('..')
+
 
 # yolo config
-yolo_dir = 'yolov3'  # YOLO文件路径
+root = os.path.split(os.path.abspath(__file__))[0]
+yolo_dir = os.path.join(root, 'yolov3')  # YOLO文件路径
 weightsPath = os.path.join(yolo_dir, 'yolov3-obj_30000.weights')  # 权重文件
 configPath = os.path.join(yolo_dir, 'yolov3-obj.cfg')  # 配置文件
 labelsPath = os.path.join(yolo_dir, 'fishbaby.names')  # label名称
 
 #imgPath = './snapshot/snap13.jpg'     # 测试图像
-imgPath = './testpictures/f23.png'
-fishPath = './testpictures/fish.png'  # 用于video得到fishSize
+testImageRoot = os.path.join(root, 'testpictures')
+imgPath = os.path.join(testImageRoot, 'f00.png')
+fishPath = os.path.join(testImageRoot, 'fish.png')  # 用于video得到fishSize
 laserStation = .618     # 图中扫描线百分比位置
-videoPath = './testpictures/fs1.mp4'
-criteria_root = './criteria_fish'
+videoPath = os.path.join(testImageRoot, 'fs1.mp4')
+print(type(cv.imread(imgPath)))
+criteria_root = os.path.join(root, 'criteria_fish')
 fishScales = os.listdir(criteria_root)  # 在root下不同level的鱼的图片文件名
 crit_fish = [os.path.join(criteria_root, fishScale) for fishScale in fishScales]
 
 camera_mode = 0
-main_mode = 'work'
+main_mode = 'snapshot'
 reset_referred_length = False
 background = 'black'
 foregroundRate = .3
+show = True
 
 def get_time_interval():
     source = snapshot()
@@ -77,6 +84,7 @@ def main(waitTime, auto_interval=False):
                 elif img is False:
                     break
         elif main_mode == 'init':
+            # get fish in different levels
             levels = int(input('How much grades of fish are there:'))
             print('{} photos will be take'.format(levels))
             for i in range(levels):
@@ -87,6 +95,13 @@ def main(waitTime, auto_interval=False):
                 name = os.path.join(criteria_root, input('This fish (file) name:'))
                 cv.imwrite(name, img)
                 input('Type any word to next snapshot')
+        elif main_mode == 'snapshot':
+            # just for test image saved as f00.png
+            img = snapshot()
+            img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+            cv.imwrite(os.path.join(testImageRoot, 'f00.png'), img)
+            print('take photo')
+
 
         close_camera()
         print('Work finished.')
@@ -97,23 +112,30 @@ def main(waitTime, auto_interval=False):
         return None
 
 
-if __name__ == '__main__':
+def get_local(net=None):
     img = cv.imread(imgPath)
-    fishCounter = FishBBoxedCounter(crit_fish, reset=reset_referred_length, background=background, display=True)
+    fishCounter = FishBBoxedCounter(crit_fish, reset=reset_referred_length, background=background, display=True,
+                                    show=show, fgRate=foregroundRate)
     hw = img.shape[:2]
-    net = get_YOLO(configPath, weightsPath)
+    if net is None:
+        net = get_YOLO(configPath, weightsPath)
 
     blobImg = get_blobImg(img)
     layerOutputs = get_output(net, blobImg)
     idxs, boxes, confidences, classIDs = get_bboxes(layerOutputs, hw)
-    #boxes = refine_bboxes(img, get_useful_boxes(idxs, boxes), display=True), show_image(img)
     names = get_labels(labelsPath)
     fishCounter.get_bboxed_fish_size(idxs, boxes, img)
     show_image(img)
     print('\033[0;35mThere you got {} Fish babies\033[0m'.format(fishCounter.get_count()))
 
-    if crit_fish is None and main_mode == 'work':
+    if not crit_fish and main_mode != 'init':
         i = input('\033[0;31mNone of criteria fish for classification, do you wanna take some?: yes or no\033[0m')
         if i == 'yes':
             main_mode = 'init'
+    cv.destroyAllWindows()
+    return img
+
+
+if __name__ == '__main__':
+    get_local()
     #print(main(waitTime=0.01, auto_interval=False))
