@@ -47,7 +47,7 @@ def get_fish_benchmarks(fishbaby_path):
     # note that the orientation of fish poses should be horizontal or vertical
     dic = {}
     fish_hw = get_fish_hw(fishbaby_path, show=False)   # returned is (x, y), already is orthogonal of (w, h)
-    dic['boxLength'] = max(fish_hw) - 0
+    dic['boxLength'] = max(fish_hw) - 30
     dic['boxWidth'] = min(fish_hw)
     box = [0, 0, dic['boxWidth'], dic['boxLength']]
     dic['theta'] = fish_angle(box)

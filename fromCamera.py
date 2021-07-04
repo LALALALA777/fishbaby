@@ -45,7 +45,7 @@ def launch_camera(toggle_mode):
     mvsdk.CameraSetTriggerMode(hCamera, toggle_mode)  # toggle mode: 0=continuous; 1=software; 2=hardware
 
     # 手动曝光，曝光时间30ms
-    mvsdk.CameraSetAeState(hCamera, 1)  	# exposure: 0=manual; 1=auto
+    mvsdk.CameraSetAeState(hCamera, 0)  	# exposure: 0=manual; 1=auto
     mvsdk.CameraSetExposureTime(hCamera, 30 * 1000)
 
     # 让SDK内部取图线程开始工作

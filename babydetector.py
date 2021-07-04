@@ -4,10 +4,9 @@ import cv2 as cv
 import time
 from videoProcessing import FishScanProcessing, get_all_frames
 from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler
 
 
-CONFIDENCE = 0.5  # 过滤弱检测的最小概率
+CONFIDENCE = 0.3  # 过滤弱检测的最小概率
 THRESHOLD = 0.5  # 非最大值抑制阈值,  重叠面积比小于这个的框保留
 color = (0, 255, 0)
 
@@ -97,10 +96,13 @@ def get_fish_hw(fish_path, show=False):
         fish = cv.imread(fish_path, cv.IMREAD_GRAYSCALE)
     else:
         fish = cv.cvtColor(fish_path, cv.COLOR_RGB2GRAY)
-
     y_min, x_min = fish.shape   # fish in here is gray scale
     y_max, x_max = 0, 0
-    ret, t = cv.threshold(fish, 128, 255, cv.THRESH_OTSU)
+    #ret, t = cv.threshold(fish, 128, 255, cv.THRESH_OTSU)
+    ret, t = cv.threshold(fish, 20, 255, cv.THRESH_BINARY)
+    t = t[int(y_min * 0.2):int(y_min * 0.8), int(x_min * 0.2):int(x_min * 0.8)]
+    if show:
+        cv.imshow('crop', t)
     contours = cv.findContours(t, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
     for contour in contours:
         if len(contour) < 50:   # regard it as outlier
@@ -305,11 +307,13 @@ class BBoxRefiner():
             loc = img[y:y + h, x:x + w]
             loc = cv.cvtColor(loc, cv.COLOR_BGR2HSV) if self.bg not in ('white', 'black') else loc
             gray = cv.cvtColor(loc, cv.COLOR_RGB2GRAY)
-            _, th = cv.threshold(gray, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)  # white background
-            notTh = cv.bitwise_not(th) if self.bg != 'black' else th.copy()
-            notTh = cv.morphologyEx(notTh, cv.MORPH_CLOSE, self.kernel3, iterations=2)  # 与有白边
+            _, th = cv.threshold(gray, 20, 255, cv.THRESH_BINARY)
+            notTh = cv.bitwise_not(th) if self.bg != 'black' else th.copy()     # all convert to black background
+            #notTh = cv.morphologyEx(notTh, cv.MORPH_CLOSE, self.kernel3, iterations=1)  # 如果有白边
+            self.bound(th, notTh)
             holes = self.fillHoleByContours(notTh)
             notTh += holes
+            #self.deep_seg(notTh, self.show)
             bi = self.separate(notTh) if self.bg != 'white' else notTh.copy()
             contours = cv.findContours(bi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
             contoursLen = map(len, contours)
@@ -327,11 +331,10 @@ class BBoxRefiner():
             # show differences above connected components
             if self.show:
                 cv.imshow('original', loc)
-                cv.imshow('not threshold', notTh)
                 cv.imshow('threshold', th)
+                cv.imshow('not threshold', notTh)
                 cv.imshow('filled hole', holes)
                 cv.imshow('new binary', bi)
-                # cv.imshow('watershed', sep)
                 areas = [cv2.contourArea(contours[i]) for i in range(len(contours))]
                 idx = np.argmax(areas)
                 [cv2.fillPoly(bi, [contours[i]], 0) for i in range(len(contours)) if i != idx]
@@ -344,7 +347,7 @@ class BBoxRefiner():
                 cv.imshow('result', gray)
                 cv.waitKey()
             new.append(nxy)
-        [cv.drawContours(img, [new[i]], 0, (255, 0, 0), 1) for i in range(len(new))] if self.display else None
+        [cv.drawContours(img, [new[i]], 0, (255, 255, 255), 1) for i in range(len(new))] if self.display else None
         return new
 
     def separate(self, img):
@@ -354,23 +357,18 @@ class BBoxRefiner():
         _, sure_fg = cv.threshold(dis_transform, self.fgRate * dis_transform.max(), 255, 0)
         sure_fg = cv.morphologyEx(sure_fg, cv.MORPH_OPEN, kernel=self.kernelCross, iterations=1)
         sure_fg = np.uint8(sure_fg)
-        # cv.imshow('fg', sure_fg)
-        # cv.waitKey()
-        #self.temp = np.zeros_like(sure_fg)
-        #self.melt(sure_fg, 1)
-        #cv.imshow('temp', self.temp)
-        #contours = cv.findContours(sure_fg, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)[0]
-        #contours = [contour for contour in contours if len(contour) > 20]
-        self.deep_seg(sure_fg)
+        self.deep_seg(sure_fg, self.show)
+        h, s = sure_fg.shape
         contours = cv.findContours(sure_fg, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)[0]
-        contours = [contour for contour in contours if len(contour) > 20]
+        contours = [contour for contour in contours if len(contour) > 25]
+        #contours += cv.findContours(self.bound(np.zeros_like(bg), bg), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)[0]
+
 
         n = len(contours)
         if n <= 1:
             if self.show:
                 cv.imshow('background', bg)
                 cv.imshow('foreground', sure_fg)
-                cv.waitKey()
             return img
         else:
             samples = []
@@ -385,18 +383,22 @@ class BBoxRefiner():
         samples = np.concatenate(samples)
         labels = np.concatenate(labels)
         new_bi = img.copy()
-        h, s = sure_fg.shape
         clf = LogisticRegression().fit(samples, labels)
         for i in range(len(clf.coef_)):
             w, b = clf.coef_[i], clf.intercept_[i]
             f = lambda x: int(-(b + x * w[0]) / w[1])
-            for x in range(h):
+            xx = np.linspace(0, h, num=h * 2)
+            for x in xx:
                 y = f(x)
-                new_bi[x - 2:x + 2, y - 2:y + 2] = 0
+                x = int(x)
+                if y > 0:
+                    new_bi[x - 2:x + 2, y - 2:y + 2] = 0
+                #cv.imshow('new bi', new_bi)
+                #cv.waitKey()
         if self.show:
-            if n > 2:
-                print(
-                    'This local patch contains components more than 2, causing decision boundary there showed has wrong')
+            if len(clf.coef_) >= 2:
+                print('This local patch contains components more than 2,'
+                      ' causing decision boundary there showed has wrong')
             cv.imshow('background', bg)
             cv.imshow('foreground', sure_fg)
             pixels = np.array([[x, y] for x in range(h) for y in range(s)], dtype=np.int32)
@@ -407,7 +409,6 @@ class BBoxRefiner():
                 db[p[0], p[1]] = 255
             db = cv.bitwise_not(db) if len(np.where(db == 0)[0]) > .5 * h * s else db
             cv.imshow('decision boundary', db)
-            #cv.waitKey()
         return new_bi
 
     def melt(self, img, n):
@@ -440,9 +441,10 @@ class BBoxRefiner():
 
     def fillHoleByContours(self, bi):
         notBi = cv.bitwise_not(bi)
+        #cv.imshow('not bi', notBi)
         new = np.zeros_like(notBi)
         h, w = new.shape
-        contours = cv.findContours(notBi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
+        contours = cv.findContours(notBi, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)[0]
         for contour in contours:
             contour = np.squeeze(contour)
             if contour.ndim == 1:
@@ -450,17 +452,17 @@ class BBoxRefiner():
                 continue
             # judging length in case that two fishtails compose a big hole
             elif cv.arcLength(contour, True) > 77 \
-                    or np.any(contour == 0) or np.any(contour[0, :] == w-1) or np.any(contour[:, 1] == h-1):
+                    or np.any(contour == 0) or np.any(contour[:, 0] == w-1) or np.any(contour[:, 1] == h-1):
                 continue
             cv.drawContours(new, [contour], 0, 255, cv.FILLED)
         return new
 
-    def deep_seg(self, img):
+    def deep_seg(self, img, show):
         contours = cv.findContours(img, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)[0]
         contours = [contour for contour in contours if len(contour) > 20]
         points = set()
         for contour in contours:
-            epsilon = 0.1 * cv.arcLength(contour, True)
+            epsilon = 0.05 * cv.arcLength(contour, True)
             approx = cv.approxPolyDP(contour, epsilon, True)
             approx = np.squeeze(approx).tolist()
             approx = list(approx)
@@ -489,7 +491,16 @@ class BBoxRefiner():
                                 points.update(map(tuple, triangle))
         for x, y in points:
             cv.circle(img, (x, y), 5, 0, cv.FILLED)
+        if show and points:
+            tri = np.zeros_like(img) + 255
+            [cv.circle(tri, (x, y), 5, 0, cv.FILLED) for x, y in points]
+            cv.imshow('triangle', tri)
+        return img
 
-
+    def bound(self, be, af):
+        assert be.shape == af.shape, 'shapes is not matched'
+        h, w = be.shape
+        af[0, :], af[h-1, :], af[:, 0], af[:, w-1] = be[0, :], be[h-1, :], be[:, 0], be[:, w-1]
+        return af
 
 

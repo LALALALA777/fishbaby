@@ -14,6 +14,8 @@ class FishFish():
 
     def reckon(self):
         img = snapshot()    # if no camera points out an image or otherwise
+        # c = cv.VideoCapture(0)
+        # img = c.read()[1]
         if img is None:
             return None
         if img is False:
@@ -27,6 +29,10 @@ class FishFish():
 
     def exit(self):
         close_camera()
+
+    def give(self):
+        img = snapshot()
+        return cv.cvtColor(img, cv.COLOR_BGR2RGB)
 
 def get_YOLO():
     """@return YOLO network"""

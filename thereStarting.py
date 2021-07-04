@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 from babydetector import get_YOLO, get_output, get_bboxes, get_blobImg, directly_get_output, refine_bboxes, get_useful_boxes
 from visTool import get_labels, show_image
@@ -20,21 +19,20 @@ labelsPath = os.path.join(yolo_dir, 'fishbaby.names')  # label名称
 
 #imgPath = './snapshot/snap13.jpg'     # 测试图像
 testImageRoot = os.path.join(root, 'testpictures')
-imgPath = os.path.join(testImageRoot, 'f00.png')
+imgPath = os.path.join(testImageRoot, 't4.png')
 fishPath = os.path.join(testImageRoot, 'fish.png')  # 用于video得到fishSize
 laserStation = .618     # 图中扫描线百分比位置
 videoPath = os.path.join(testImageRoot, 'fs1.mp4')
-print(type(cv.imread(imgPath)))
 criteria_root = os.path.join(root, 'criteria_fish')
 fishScales = os.listdir(criteria_root)  # 在root下不同level的鱼的图片文件名
 crit_fish = [os.path.join(criteria_root, fishScale) for fishScale in fishScales]
 
 camera_mode = 0
-main_mode = 'snapshot'
+main_mode = 'w'
 reset_referred_length = False
 background = 'black'
-foregroundRate = .3
-show = True
+foregroundRate = .5
+show = False
 
 def get_time_interval():
     source = snapshot()
@@ -67,8 +65,9 @@ def main(waitTime, auto_interval=False):
     if launch_camera(toggle_mode=camera_mode) is True:
         if auto_interval:
             waitTime = get_time_interval()
-        if main_mode == 'work':
-            while cv.waitKey(2) != ord('q'):
+        if main_mode in ('work', 'w'):
+            key = cv.waitKey(1)
+            while key != ord('q'):
                 start = time.time()
                 img = snapshot()
                 if img is None:
@@ -77,13 +76,17 @@ def main(waitTime, auto_interval=False):
                     img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
                     #cv.imshow('ori', img)
                     idxs, boxes, _, _ = directly_get_output(img, net)
-                    img = fishCounter.get_bboxed_fish_size(idxs, boxes, img)
-                    cv.imshow('Press key q to quit', img)
+                    simg = fishCounter.get_bboxed_fish_size(idxs, boxes, img.copy())
+                    cv.imshow('Press key q to quit; key s to save current image', simg)
                     print('process one image take {} secs'.format(time.time()-start))
                     time.sleep(waitTime)
                 elif img is False:
                     break
-        elif main_mode == 'init':
+                key = cv.waitKey(2)
+                if key == ord('s'):
+                    cv.imwrite(os.path.join(testImageRoot, 't3.png'), img)
+                    print('saved image')
+        elif main_mode in ('init', 'i'):
             # get fish in different levels
             levels = int(input('How much grades of fish are there:'))
             print('{} photos will be take'.format(levels))
@@ -95,14 +98,6 @@ def main(waitTime, auto_interval=False):
                 name = os.path.join(criteria_root, input('This fish (file) name:'))
                 cv.imwrite(name, img)
                 input('Type any word to next snapshot')
-        elif main_mode == 'snapshot':
-            # just for test image saved as f00.png
-            img = snapshot()
-            img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-            cv.imwrite(os.path.join(testImageRoot, 'f00.png'), img)
-            print('take photo')
-
-
         close_camera()
         print('Work finished.')
         cv.destroyAllWindows()
@@ -137,5 +132,7 @@ def get_local(net=None):
 
 
 if __name__ == '__main__':
-    get_local()
+    for i in range(5):
+        imgPath = os.path.join(testImageRoot, 't'+str(i+1)+'.png')
+        get_local()
     #print(main(waitTime=0.01, auto_interval=False))
