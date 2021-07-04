@@ -315,11 +315,11 @@ class BBoxRefiner():
             notTh += holes
             #self.deep_seg(notTh, self.show)
             bi = self.separate(notTh) if self.bg != 'white' else notTh.copy()
-            contours = cv.findContours(bi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
-            contoursLen = map(len, contours)
+            contours = cv.findContours(bi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)[0]
+            contoursLen = map(cv.contourArea, contours)
             points = max(contoursLen)
             for contour in contours[::-1]:
-                if len(contour) == points:
+                if cv.contourArea(contour) == points:
                     points = contour
                     break
             rect = cv.minAreaRect(points)  # find white area
@@ -357,12 +357,11 @@ class BBoxRefiner():
         _, sure_fg = cv.threshold(dis_transform, self.fgRate * dis_transform.max(), 255, 0)
         sure_fg = cv.morphologyEx(sure_fg, cv.MORPH_OPEN, kernel=self.kernelCross, iterations=1)
         sure_fg = np.uint8(sure_fg)
-        self.deep_seg(sure_fg, self.show)
+        seg = self.deep_seg(sure_fg, self.show)
+        fg = sure_fg - cv.bitwise_and(seg, sure_fg)
         h, s = sure_fg.shape
-        contours = cv.findContours(sure_fg, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)[0]
+        contours = cv.findContours(fg, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)[0]
         contours = [contour for contour in contours if len(contour) > 25]
-        #contours += cv.findContours(self.bound(np.zeros_like(bg), bg), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)[0]
-
 
         n = len(contours)
         if n <= 1:
@@ -387,7 +386,7 @@ class BBoxRefiner():
         for i in range(len(clf.coef_)):
             w, b = clf.coef_[i], clf.intercept_[i]
             f = lambda x: int(-(b + x * w[0]) / w[1])
-            xx = np.linspace(0, h, num=h * 2)
+            xx = np.linspace(0, h, num=h * 10)
             for x in xx:
                 y = f(x)
                 x = int(x)
@@ -400,7 +399,7 @@ class BBoxRefiner():
                 print('This local patch contains components more than 2,'
                       ' causing decision boundary there showed has wrong')
             cv.imshow('background', bg)
-            cv.imshow('foreground', sure_fg)
+            cv.imshow('foreground', fg)
             pixels = np.array([[x, y] for x in range(h) for y in range(s)], dtype=np.int32)
             r = clf.predict(pixels)
             db = np.zeros_like(sure_fg, dtype=np.uint8)
@@ -458,15 +457,19 @@ class BBoxRefiner():
         return new
 
     def deep_seg(self, img, show):
+        new = np.zeros_like(img, dtype=np.uint8)
         contours = cv.findContours(img, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)[0]
-        contours = [contour for contour in contours if len(contour) > 20]
+        contours = [contour for contour in contours if cv.arcLength(contour, True) > 20]
         points = set()
         for contour in contours:
-            epsilon = 0.05 * cv.arcLength(contour, True)
-            approx = cv.approxPolyDP(contour, epsilon, True)
+            epsilon = 0.04 * cv.arcLength(contour, True)
+            approx = cv.approxPolyDP(contour, epsilon, False)
             approx = np.squeeze(approx).tolist()
             approx = list(approx)
             n = len(approx)
+            '''[cv.circle(img, p, 5, 255, 1) for p in approx]
+            cv.imshow('circle', img)
+            cv.waitKey()'''
             if n == 2:
                 continue
             elif n > 2:
@@ -483,19 +486,33 @@ class BBoxRefiner():
                             s3 = triangle[2] - triangle[1]
                             ls = np.linalg.norm(np.array([s1, s2, s3]), axis=1)     # length of sides
                             s = np.sum(ls) / 2
-                            a = np.sqrt(s*(s-ls[0])*(s-ls[1])*(s-ls[2]))
+                            a = np.sqrt(s*(s-ls[0])*(s-ls[1])*(s-ls[2])) + 10e-6
                             cv.drawContours(mask, [triangle], 0, 255, cv.FILLED)
                             ais = len(np.where(cv.bitwise_and(mask, img) == 255)[0])   # area of intersection
                             p = ais / a
-                            if p < 0.3:
+                            if p < 0.1:
+                                idx = np.argmin(ls)
+                                if idx == 0:
+                                    for i in (0, 1):
+                                        k, b = self.two_points_seek_line(triangle[2], triangle[i])
+                                        self.draw_line(k, b, new, 255)
+                                elif idx == 1:
+                                    for i in (0, 2):
+                                        k, b = self.two_points_seek_line(triangle[1], triangle[i])
+                                        self.draw_line(k, b, new, 255)
+                                else:
+                                    for i in (2, 1):
+                                        k, b = self.two_points_seek_line(triangle[0], triangle[i])
+                                        self.draw_line(k, b, new, 255)
                                 points.update(map(tuple, triangle))
         for x, y in points:
-            cv.circle(img, (x, y), 5, 0, cv.FILLED)
+            #cv.circle(new, (x, y), 5, 255, cv.FILLED)
+            pass
         if show and points:
-            tri = np.zeros_like(img) + 255
-            [cv.circle(tri, (x, y), 5, 0, cv.FILLED) for x, y in points]
-            cv.imshow('triangle', tri)
-        return img
+            sh = new.copy()
+            [cv.circle(sh, (x, y), 5, 255, cv.FILLED) for x, y in points]
+            cv.imshow('deep seg', sh)
+        return new
 
     def bound(self, be, af):
         assert be.shape == af.shape, 'shapes is not matched'
@@ -503,4 +520,21 @@ class BBoxRefiner():
         af[0, :], af[h-1, :], af[:, 0], af[:, w-1] = be[0, :], be[h-1, :], be[:, 0], be[:, w-1]
         return af
 
+    def two_points_seek_line(self, p1, p2):
+        a = p1 - p2
+        k = a[1] / a[0]
+        b = p1[1] - k * p1[0]
+        return k, b
 
+    def draw_line(self, k, b, img, c):
+        ax = max(img.shape)
+        xx = np.linspace(1, ax, ax*2, endpoint=False)
+        yy = xx * k + b
+        for x, y in zip(xx, yy):
+            if ax > y > 0:
+                x = int(x)
+                y = int(y)
+                try:
+                    img[y-1:y+1, x-1:x+1] = c
+                except:
+                    return

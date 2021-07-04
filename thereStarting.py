@@ -31,8 +31,8 @@ camera_mode = 0
 main_mode = 'w'
 reset_referred_length = False
 background = 'black'
-foregroundRate = .5
-show = False
+foregroundRate = .45
+show = True
 
 def get_time_interval():
     source = snapshot()
@@ -134,5 +134,6 @@ def get_local(net=None):
 if __name__ == '__main__':
     for i in range(5):
         imgPath = os.path.join(testImageRoot, 't'+str(i+1)+'.png')
+        pass
         get_local()
     #print(main(waitTime=0.01, auto_interval=False))
