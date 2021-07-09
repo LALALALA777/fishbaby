@@ -32,7 +32,7 @@ main_mode = 'w'
 reset_referred_length = False
 background = 'black'
 foregroundRate = .45
-show = True
+show = False
 
 def get_time_interval():
     source = snapshot()
@@ -84,7 +84,7 @@ def main(waitTime, auto_interval=False):
                     break
                 key = cv.waitKey(2)
                 if key == ord('s'):
-                    cv.imwrite(os.path.join(testImageRoot, 't3.png'), img)
+                    cv.imwrite(os.path.join(testImageRoot, 't50.png'), img)
                     print('saved image')
         elif main_mode in ('init', 'i'):
             # get fish in different levels
@@ -132,8 +132,8 @@ def get_local(net=None):
 
 
 if __name__ == '__main__':
-    for i in range(5):
+    """for i in range(5):
         imgPath = os.path.join(testImageRoot, 't'+str(i+1)+'.png')
         pass
-        get_local()
-    #print(main(waitTime=0.01, auto_interval=False))
+        get_local()"""
+    print(main(waitTime=0.01, auto_interval=False))

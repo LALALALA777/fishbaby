@@ -309,7 +309,7 @@ class BBoxRefiner():
             gray = cv.cvtColor(loc, cv.COLOR_RGB2GRAY)
             _, th = cv.threshold(gray, 20, 255, cv.THRESH_BINARY)
             notTh = cv.bitwise_not(th) if self.bg != 'black' else th.copy()     # all convert to black background
-            #notTh = cv.morphologyEx(notTh, cv.MORPH_CLOSE, self.kernel3, iterations=1)  # 如果有白边
+            notTh = cv.morphologyEx(notTh, cv.MORPH_CLOSE, self.kernel3, iterations=1)  # 如果有白边
             self.bound(th, notTh)
             holes = self.fillHoleByContours(notTh)
             notTh += holes

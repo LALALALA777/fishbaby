@@ -71,5 +71,6 @@ def drawBBoxesWithKindAndLength(img, bboxes, lens, kinds, color=(0, 255, 255)):
         x, y, w, h = bbox
         cv.rectangle(img, (x, y), (x+w, y+h), color, thickness=1)
         text = "{}: {:.2f}".format(kinds[i], lens[i])
+        #print(text)
         cv.putText(img, text, (x - 20 + w//2, y + h//2), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
     return
